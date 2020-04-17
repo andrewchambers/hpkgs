@@ -1,10 +1,13 @@
 
+# Some strong suggestions to packages.
+(def *cflags* "-O3 -fstack-protector")
+
 (def seed
   (fetch
     :url
       "https://github.com/andrewchambers/hermes-seeds/raw/master/seed.tar.gz"
     :hash
-      "sha256:3d850f281e907d3b78599612ee1a17e63084b98947799a22a3e2a938db98e30a"))
+      "sha256:1e65c49be40824eb6ff88f5d195d912b017a3917665697ea4faeeaad270740fc"))
 
 (def seed-env
   (pkg
@@ -12,6 +15,29 @@
       "seed"
     :builder
       |(unpack (string (seed :path) "/seed.tar.gz") :dest (dyn :pkg-out))))
+
+
+(def make-src
+  (fetch
+    :url
+      "https://ftp.gnu.org/gnu/make/make-4.2.tar.gz"
+    :hash
+      "sha256:e968ce3c57ad39a593a92339e23eb148af6296b9f40aa453a9a9202c99d34436"))
+
+(def make
+  (pkg
+    :name "make"
+    :builder
+    (fn []
+      (unless (os/lstat "/bin/sh")
+        (os/symlink (string (seed-env :path) "/bin/dash") "/bin/sh"))
+      (os/setenv "PATH" (string (seed-env :path) "/bin"))
+      (unpack ;(sh/glob (string (make-src :path) "/*")))
+      (os/setenv "CC" "x86_64-linux-musl-gcc --static")
+      (os/setenv "CFLAGS" *cflags*)
+      (sh/$ ["sh" "./configure" (string "--prefix=" (dyn :pkg-out))])
+      (sh/$ ["sh" "./build.sh"])
+      (sh/$ ["./make" "install"]))))
 
 (defn- core-pkg
   [&keys {:name name :src src}]
@@ -22,14 +48,15 @@
       # This already exists in single user mode.
       (unless (os/lstat "/bin/sh")
         (os/symlink (string (seed-env :path) "/bin/dash") "/bin/sh"))
-      (os/setenv "PATH" (string (seed-env :path) "/bin"))
+      (os/setenv "PATH" (string (seed-env :path) "/bin:"  (make :path) "/bin"))
       (def src-archive (first (sh/glob (string (src :path) "/*"))))
       (unpack src-archive)
       (os/setenv "CC" "x86_64-linux-musl-gcc --static")
-      (os/setenv "CFLAGS" "-O3 -fstack-protector")
+      (os/setenv "CFLAGS" *cflags*)
       (os/setenv "LDFLAGS" "--static")
       (sh/$ ["dash" "./configure" "--enable-shared=no" "--prefix" (dyn :pkg-out)])
-      (sh/$ ["make" (string "-j" (dyn :parallelism))])
+      (sh/$ ["make" (string "CFLAGS=" *cflags*)
+                    (string "-j" (dyn :parallelism))])
       (sh/$ ["make" "install"]))))
 
 (defmacro defsrc
@@ -75,12 +102,6 @@
     "https://ftp.gnu.org/pub/gnu/findutils/findutils-4.7.0.tar.xz"
   :src-hash
     "sha256:c5fefbdf9858f7e4feb86f036e1247a54c79fc2d8e4b7064d5aaa1f47dfa789a")
-
-(defcore make
-  :src-url
-    "https://ftp.gnu.org/gnu/make/make-4.2.tar.gz"
-  :src-hash
-    "sha256:e968ce3c57ad39a593a92339e23eb148af6296b9f40aa453a9a9202c99d34436")
 
 (defcore patch
   :src-url
@@ -135,7 +156,7 @@
     :name "bzip2"
     :builder
     (fn []
-      (os/setenv "PATH" (string (seed-env :path) "/bin"))
+      (os/setenv "PATH" (string (seed-env :path) "/bin:"  (make :path) "/bin"))
       (unpack (first (sh/glob (string (bzip2-src :path) "/*"))))
       (->> (slurp "Makefile")
            (string/replace "SHELL=/bin/sh" "SHELL=sh")
@@ -143,7 +164,7 @@
 
       (sh/$ ["make" "install"
                "CC=x86_64-linux-musl-gcc --static"
-               "CFLAGS=-O2"
+               (string "CFLAGS=" *cflags*)
                "LDFLAGS=--static"
                (string "PREFIX=" (dyn :pkg-out))]))))
 
@@ -240,7 +261,7 @@
   :hash "sha256:c6de7b191139142d3f9a7b5b702c9cae1b5ee6e7f57e582da9328629408fd4e8")
 
 (defsrc linux-hdrs-src
-  :url "http://ftp.barfooze.de/pub/sabotage/tarballs//linux-headers-4.19.88.tar.xz"
+  :url "http://ftp.barfooze.de/pub/sabotage/tarballs/linux-headers-4.19.88.tar.xz"
   :hash "sha256:d3f3acf6d16bdb005d3f2589ade1df8eff2e1c537f92e6cd9222218ead882feb")
 
 # XXX Why does musl cross make download this?
@@ -261,6 +282,7 @@
 
   (os/setenv "PATH"
     (string
+      (make :path) "/bin:"
       (bzip2 :path) "/bin:"
       (seed-env :path) "/bin"))
   
@@ -283,11 +305,12 @@
   (sh/$ ["make" "extract_all"])
   (when post-extract
     (post-extract))
+  (sh/$ ["make"])
   (sh/$ ["make" "install" (string "-j" (dyn :parallelism)) ])
   (when post-install
     (post-install)))
 
-# The runtime package is a gcc installation with only 
+# The runtime package is a gcc installation with only dynamic libraries.
 (def gcc-runtime
   (pkg
     :name "rt"
@@ -327,9 +350,19 @@
             "/lib/ld-musl-x86_64.so.1"
             (string (gcc-runtime :path) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
             (slurp cfg))))
+      
       (install-musl-cross-make-gcc
         do-patch
-        nil))))
+        nil)
+
+      (os/cd (string (dyn :pkg-out) "/bin"))
+      (os/symlink "./x86_64-linux-musl-ar" "ar")
+      (os/symlink "./x86_64-linux-musl-ar" "ranlib")
+      (os/symlink "./x86_64-linux-musl-gcc" "cc")
+      (os/symlink "./x86_64-linux-musl-gcc" "gcc")
+      (os/symlink "./x86_64-linux-musl-c++" "c++")
+      (os/symlink "./x86_64-linux-musl-c++" "g++")
+      (os/symlink "./x86_64-linux-musl-ld" "ld"))))
 
 
 (def core-build-env
@@ -342,59 +375,82 @@
         gcc
         pkgconf
         make
-      ]
-    :post-build
-      (fn []
-        (os/cd (string (dyn :pkg-out) "/bin"))
-        # This could probably be a loop.
-        (os/symlink "./x86_64-linux-musl-ar" "ar")
-        (os/symlink "./x86_64-linux-musl-ar" "ranlib")
-        (os/symlink "./x86_64-linux-musl-gcc" "cc")
-        (os/symlink "./x86_64-linux-musl-c++" "c++")
-        (os/symlink "./x86_64-linux-musl-c++" "g++")
-        (os/symlink "./x86_64-linux-musl-ld" "ld"))))
+      ]))
 
-(def seed-out
+(def busybox-src
+  (fetch
+    :url
+      "https://busybox.net/downloads/busybox-1.31.1.tar.bz2"
+    :hash
+      "sha256:d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998"))
+
+(def busybox
   (pkg
-    :name "seed-out"
+    :name "busybox"
     :builder
     (fn []
-      
-      (os/setenv "PATH" (string (seed-env :path) "/bin"))
+      (unless (os/lstat "/bin/sh")
+        (os/symlink (string (dash :path) "/bin/dash") "/bin/sh"))
+      (os/setenv "PATH" (string (core-build-env :path) "/bin"))
+      (unpack ;(sh/glob (string (busybox-src :path) "/*")))
+      (os/setenv "CFLAGS" *cflags*)
+      (os/setenv "LDFLAGS" "--static")
+      (sh/$ ["make" "defconfig"])
+      (sh/$ ["make"])
+      (def bin (string (dyn :pkg-out) "/bin"))
+      (os/mkdir bin)
+      (sh/$ "cp" "./busybox" bin))))
 
-      (defn copy-bin
-        [pkg]
-        (def out-bin-dir (string (dyn :pkg-out) "/bin"))
-        (os/mkdir out-bin-dir)
-        (sh/$ ["cp" "-rT" (string (pkg :path) "/bin") out-bin-dir]))
+(def seed-out
+  (do
+    (def new-seed
+      (pkg
+        :builder
+        (fn []
+          
+          (os/setenv "PATH" (string (seed-env :path) "/bin"))
 
-      (copy-bin dash)
-      (copy-bin awk)
-      (copy-bin coreutils)
-      (copy-bin diffutils)
-      (copy-bin findutils)
-      (copy-bin patch)
-      (copy-bin make)
-      (copy-bin tar)
-      (copy-bin gzip)
-      (copy-bin xz)
-      (copy-bin grep)
-      (copy-bin sed)
+          (defn copy-bin
+            [pkg]
+            (def out-bin-dir (string (dyn :pkg-out) "/bin"))
+            (os/mkdir out-bin-dir)
+            (sh/$ ["cp" "-rT" (string (pkg :path) "/bin") out-bin-dir]))
 
-      (install-musl-cross-make-gcc
-        nil
-        nil)
+          (copy-bin dash)
+          (copy-bin coreutils)
+          (copy-bin diffutils)
+          (copy-bin findutils)
+          (copy-bin patch)
+          (copy-bin tar)
+          (copy-bin awk)
+          (copy-bin gzip)
+          (copy-bin xz)
+          (copy-bin grep)
+          (copy-bin sed)
 
-      (def start-dir (os/cwd))
-      (os/cd (string (dyn :pkg-out) "/bin"))
-      (os/symlink "./dash" "sh")
-      (os/symlink "./x86_64-linux-musl-ar"  "ar")
-      (os/symlink "./x86_64-linux-musl-gcc" "cc")
-      (os/symlink "./x86_64-linux-musl-c++" "c++")
-      (os/cd start-dir)
+          (install-musl-cross-make-gcc
+            nil
+            nil)
 
-      (sh/$ ["tar" "-C" (dyn :pkg-out) "-cz" "-f" "./seed.tar.gz" "."])
-      (sh/$ ["mv" "./seed.tar.gz" (dyn :pkg-out)]))))
+          (os/cd (string (dyn :pkg-out) "/bin"))
+          (os/symlink "./dash" "sh")
+          (os/symlink "./x86_64-linux-musl-ar"  "ar")
+          (os/symlink "./x86_64-linux-musl-gcc" "cc")
+          (os/symlink "./x86_64-linux-musl-gcc" "gcc")
+          (os/symlink "./x86_64-linux-musl-c++" "c++"))))
+      (pkg
+        :name "seed-out"
+        :builder
+        (fn []
+          (os/setenv "PATH" 
+            (string/join  [(string (findutils :path) "/bin")
+                           (string (new-seed :path) "/bin")] ":"))
+          (with [f (file/open (string (dyn :pkg-out) "/seed.tar.gz") :wb+)]
+            (os/cd (new-seed :path))
+            (sh/$ [
+              "sh" "-c"
+              "find . | grep -v \".hpkg.jdn\" | LC_ALL=C sort | tar --owner=root:0 --group=root:0 --mtime='UTC 2019-01-01' --no-recursion -T - -cf - | gzip -9"
+            ] :redirects [[stdout f]] ))))))
 
 (defn std-unpack-phase []
   (def src (dyn :pkg-src))
