@@ -1,4 +1,6 @@
 
+(def- seed-hash "sha256:7b78403abeaacb89175b2501e91c8def7ad91287449542133bdd805c50daa645")
+
 # Some strong suggestions to packages.
 (def *cflags* "-O3 -fstack-protector")
 
@@ -7,15 +9,19 @@
     :url
       "https://github.com/andrewchambers/hermes-seeds/raw/master/seed.tar.gz"
     :hash
-      "sha256:1e65c49be40824eb6ff88f5d195d912b017a3917665697ea4faeeaad270740fc"))
+      seed-hash))
 
 (def seed-env
   (pkg
     :name
       "seed"
     :builder
-      |(unpack (string (seed :path) "/seed.tar.gz") :dest (dyn :pkg-out))))
+      |(unpack ;(sh/glob (string (seed :path) "/*")) :dest (dyn :pkg-out))))
 
+(defn ensure-/bin/sh []
+  # In sandbox modes where we can't control /, /bin/sh will already exist.
+  (unless (os/lstat "/bin/sh")
+    (os/symlink (string (seed-env :path) "/bin/busybox") "/bin/sh")))
 
 (def make-src
   (fetch
@@ -29,8 +35,7 @@
     :name "make"
     :builder
     (fn []
-      (unless (os/lstat "/bin/sh")
-        (os/symlink (string (seed-env :path) "/bin/dash") "/bin/sh"))
+      (ensure-/bin/sh)
       (os/setenv "PATH" (string (seed-env :path) "/bin"))
       (unpack ;(sh/glob (string (make-src :path) "/*")))
       (os/setenv "CC" "x86_64-linux-musl-gcc --static")
@@ -39,22 +44,48 @@
       (sh/$ ["sh" "./build.sh"])
       (sh/$ ["./make" "install"]))))
 
+(def busybox-src
+  (fetch
+    :url
+      "https://busybox.net/downloads/busybox-1.31.1.tar.bz2"
+    :hash
+      "sha256:d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998"))
+
+(def busybox
+  (pkg
+    :name "busybox"
+    :builder
+    (fn []
+      (ensure-/bin/sh)
+      (os/setenv "PATH" (string (seed-env :path) "/bin:"
+                                (make :path) "/bin"))
+      (unpack ;(sh/glob (string (busybox-src :path) "/*")))
+      (def make-args [
+        "HOSTCC=gcc --static"
+        "LDFLAGS=--static"
+        (string "CFLAGS=" *cflags*)
+      ])
+      (os/setenv "KCONFIG_NOTIMESTAMP" "1")
+      (sh/$ ["make" ;make-args "defconfig"])
+      (sh/$ ["make" ;make-args "-j" (string (dyn :parallelism)) "busybox"])
+      (def bin (string (dyn :pkg-out) "/bin"))
+      (os/mkdir bin)
+      (sh/$ ["cp" "./busybox" bin]))))
+
 (defn- core-pkg
   [&keys {:name name :src src}]
   (pkg
     :name name
     :builder
     (fn []
-      # This already exists in single user mode.
-      (unless (os/lstat "/bin/sh")
-        (os/symlink (string (seed-env :path) "/bin/dash") "/bin/sh"))
+      (ensure-/bin/sh)
       (os/setenv "PATH" (string (seed-env :path) "/bin:"  (make :path) "/bin"))
       (def src-archive (first (sh/glob (string (src :path) "/*"))))
       (unpack src-archive)
       (os/setenv "CC" "x86_64-linux-musl-gcc --static")
       (os/setenv "CFLAGS" *cflags*)
       (os/setenv "LDFLAGS" "--static")
-      (sh/$ ["dash" "./configure" "--enable-shared=no" "--prefix" (dyn :pkg-out)])
+      (sh/$ ["ash" "./configure" "--enable-shared=no" "--prefix" (dyn :pkg-out)])
       (sh/$ ["make" (string "CFLAGS=" *cflags*)
                     (string "-j" (dyn :parallelism))])
       (sh/$ ["make" "install"]))))
@@ -157,11 +188,10 @@
     :builder
     (fn []
       (os/setenv "PATH" (string (seed-env :path) "/bin:"  (make :path) "/bin"))
-      (unpack (first (sh/glob (string (bzip2-src :path) "/*"))))
+      (unpack ;(sh/glob (string (bzip2-src :path) "/*")))
       (->> (slurp "Makefile")
            (string/replace "SHELL=/bin/sh" "SHELL=sh")
            (spit "Makefile"))
-
       (sh/$ ["make" "install"
                "CC=x86_64-linux-musl-gcc --static"
                (string "CFLAGS=" *cflags*)
@@ -260,9 +290,9 @@
   :url "https://www.musl-libc.org/releases/musl-1.2.0.tar.gz"
   :hash "sha256:c6de7b191139142d3f9a7b5b702c9cae1b5ee6e7f57e582da9328629408fd4e8")
 
-(defsrc linux-hdrs-src
-  :url "http://ftp.barfooze.de/pub/sabotage/tarballs/linux-headers-4.19.88.tar.xz"
-  :hash "sha256:d3f3acf6d16bdb005d3f2589ade1df8eff2e1c537f92e6cd9222218ead882feb")
+(defsrc linux-src
+  :url "https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.19.90.tar.xz"
+  :hash "sha256:29d86c0a6daf169ec0b4b42a12f8d55dc894c52bd901f876f52a05906a5cf7fd")
 
 # XXX Why does musl cross make download this?
 (def- config.sub
@@ -271,99 +301,102 @@
     :hash "sha256:75d5d255a2a273b6e651f82eecfabf6cbcd8eaeae70e86b417384c8f4a58d8d3"
     :file-name "config.sub"))
 
-(defn- install-musl-cross-make-gcc
-  [post-extract post-install]
-  (unless (os/lstat "/bin/sh")
-    (os/symlink (string (dash :path) "/bin/dash") "/bin/sh"))
-  
-  (defn archive-path
-    [src-pkg]
-    (first (sh/glob (string (src-pkg :path) "/*"))))
+(def mcm-gcc
+  (pkg
+    :name "mcm-gcc"
+    :builder
+    (fn []
+      (ensure-/bin/sh)
 
-  (os/setenv "PATH"
-    (string
-      (make :path) "/bin:"
-      (bzip2 :path) "/bin:"
-      (seed-env :path) "/bin"))
-  
-  (unpack (archive-path musl-cross-make-src))
+      (defn archive-path
+        [src-pkg]
+        (first (sh/glob (string (src-pkg :path) "/*"))))
 
-  (os/mkdir "sources")
-  (each src [gcc-src binutils-src musl-src gmp-src mpc-src mpfr-src linux-hdrs-src]
-    (sh/$ ["cp" (archive-path src) "./sources"]))
-  (sh/$ ["cp" (string (config.sub :path) "/config.sub") "./sources"])
-  
-  (spit "config.mak"
-    (string
-      "TARGET=x86_64-linux-musl\n"
-      "OUTPUT=" (dyn :pkg-out) "\n"
-      "COMMON_CONFIG += CC=\"x86_64-linux-musl-gcc -static --static\" CXX=\"x86_64-linux-musl-g++ -static --static\"\n"
-      "COMMON_CONFIG += CFLAGS=\"-O3\" CXXFLAGS=\"-O3\" LDFLAGS=\"-s\"\n"
-      "DL_CMD=false\n"
-      "COWPATCH=" (os/cwd) "/cowpatch.sh\n"))
+      (os/setenv "PATH"
+        (string
+          (make :path) "/bin:"
+          # busybox patch fails on some of the mcm patches.
+          (patch :path) "/bin:"
+          (seed-env :path) "/bin"))
+      
+      (unpack (archive-path musl-cross-make-src))
 
-  (sh/$ ["make" "extract_all"])
-  (when post-extract
-    (post-extract))
-  (sh/$ ["make"])
-  (sh/$ ["make" "install" (string "-j" (dyn :parallelism)) ])
-  (when post-install
-    (post-install)))
+      (os/mkdir "sources")
+      (each src [gcc-src binutils-src musl-src gmp-src mpc-src mpfr-src linux-src]
+        (sh/$ ["cp" (archive-path src) "./sources"]))
+      (sh/$ ["cp" (string (config.sub :path) "/config.sub") "./sources"])
+      
+      (spit "config.mak"
+        (string
+          "TARGET=x86_64-linux-musl\n"
+          "LINUX_VER = 4.19.90\n"
+          "OUTPUT=" (dyn :pkg-out) "\n"
+          "GCC_CONFIG += --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point --disable-lto\n"
+          "COMMON_CONFIG += CC=\"gcc -static --static\"\n"
+          "COMMON_CONFIG += CXX=\"g++ -static --static\"\n"
+          "COMMON_CONFIG += CFLAGS=\"-O3\" CXXFLAGS=\"-O3\" LDFLAGS=\"-s\"\n"
+          "DL_CMD=false\n"
+          "COWPATCH=" (os/cwd) "/cowpatch.sh\n"))
+      # XXX This patch is not very robust, remove it if you find a better way.
+      (->> (slurp "litecross/Makefile")
+           (string/replace-all "kernel_headers && $(MAKE) "
+                               "kernel_headers && $(MAKE) HOSTCFLAGS=--static ")
+           (spit "litecross/Makefile"))
+      (sh/$ ["make" "extract_all"])
+      (sh/$ ["make" (string "-j" (dyn :parallelism))])
+      (sh/$ ["make" "install"])
+      
+      (let [start-dir (os/cwd)]
+        (defer (os/cd start-dir)
+          (os/cd (string (dyn :pkg-out) "/bin"))
+          (os/symlink "./x86_64-linux-musl-ar" "ar")
+          (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
+          (os/symlink "./x86_64-linux-musl-strip" "strip")
+          (os/symlink "./x86_64-linux-musl-gcc" "cc")
+          (os/symlink "./x86_64-linux-musl-gcc" "gcc")
+          (os/symlink "./x86_64-linux-musl-c++" "c++")
+          (os/symlink "./x86_64-linux-musl-c++" "g++")
+          (os/symlink "./x86_64-linux-musl-ld" "ld"))))))
+
 
 # The runtime package is a gcc installation with only dynamic libraries.
-(def gcc-runtime
+(def gcc-rt
   (pkg
     :name "rt"
     :builder
     (fn []
-      (defn do-fixups
-        []
-        # Remove things that aren't dynamic libs.
-        (sh/$ ["find" (dyn :pkg-out) "-type" "f" "-not" "-name" "*.so*" "-delete"])
-        
-        # XXX Fix broken link, why is this broken?
-        (def ld.so (string (dyn :pkg-out) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1"))
-        (os/rm ld.so)
-        (os/symlink "libc.so" ld.so)
-        
-        # Manually configure path with musl config.
-        (os/mkdir (string (dyn :pkg-out) "/x86_64-linux-musl/etc"))
-        (spit 
-          (string (dyn :pkg-out) "/x86_64-linux-musl/etc/ld-musl-x86_64.path")
-          (string (dyn :pkg-out) "/x86_64-linux-musl/lib\n"))
-        #XXX TODO DELETE empty dirs
-        )
-      (install-musl-cross-make-gcc
-        nil
-        do-fixups))))
+      (os/setenv "PATH" (string (seed-env :path) "/bin"))
+      (sh/$ ["cp" "-rv" ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out)])
+      (sh/$ ["chmod" "-R" "+w" (dyn :pkg-out)])
+      # Remove things that aren't dynamic libs.
+      (sh/$ ["find" (dyn :pkg-out) "-not" "-name" "*.so*" "-delete"])
+      
+      # XXX Fix broken link, why is this broken?
+      (def ld.so (string (dyn :pkg-out) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1"))
+      (os/rm ld.so)
+      (os/symlink "libc.so" ld.so)
+      
+      # Manually configure path with musl config.
+      (os/mkdir (string (dyn :pkg-out) "/x86_64-linux-musl/etc"))
+      (spit 
+        (string (dyn :pkg-out) "/x86_64-linux-musl/etc/ld-musl-x86_64.path")
+        (string (dyn :pkg-out) "/x86_64-linux-musl/lib\n")))))
 
 (def gcc
   (pkg
     :name "gcc"
     :builder
     (fn []
-      (defn do-patch
-        []
-        (def cfg "gcc-9.2.0/gcc/config/i386/linux64.h")
-        (spit cfg 
-          (string/replace-all
-            "/lib/ld-musl-x86_64.so.1"
-            (string (gcc-runtime :path) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
-            (slurp cfg))))
-      
-      (install-musl-cross-make-gcc
-        do-patch
-        nil)
-
-      (os/cd (string (dyn :pkg-out) "/bin"))
-      (os/symlink "./x86_64-linux-musl-ar" "ar")
-      (os/symlink "./x86_64-linux-musl-ar" "ranlib")
-      (os/symlink "./x86_64-linux-musl-gcc" "cc")
-      (os/symlink "./x86_64-linux-musl-gcc" "gcc")
-      (os/symlink "./x86_64-linux-musl-c++" "c++")
-      (os/symlink "./x86_64-linux-musl-c++" "g++")
-      (os/symlink "./x86_64-linux-musl-ld" "ld"))))
-
+      (os/setenv "PATH" (string (seed-env :path) "/bin"))
+      (sh/$ ["cp" "-rv" ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out)])
+      (sh/$ ["chmod" "-R" "+w" (dyn :pkg-out)])
+      (def specs (sh/$$ [(string (dyn :pkg-out) "/bin/gcc") "-dumpspecs"]))
+      (def new-specs
+        (string/replace-all
+          "/lib/ld-musl-x86_64.so.1"
+          (string (gcc-rt :path) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
+          specs))
+      (spit (string (dyn :pkg-out) "/x86_64-linux-musl/lib/specs") new-specs))))
 
 (def core-build-env
   (make-combined-env
@@ -376,81 +409,6 @@
         pkgconf
         make
       ]))
-
-(def busybox-src
-  (fetch
-    :url
-      "https://busybox.net/downloads/busybox-1.31.1.tar.bz2"
-    :hash
-      "sha256:d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998"))
-
-(def busybox
-  (pkg
-    :name "busybox"
-    :builder
-    (fn []
-      (unless (os/lstat "/bin/sh")
-        (os/symlink (string (dash :path) "/bin/dash") "/bin/sh"))
-      (os/setenv "PATH" (string (core-build-env :path) "/bin"))
-      (unpack ;(sh/glob (string (busybox-src :path) "/*")))
-      (os/setenv "CFLAGS" *cflags*)
-      (os/setenv "LDFLAGS" "--static")
-      (sh/$ ["make" "defconfig"])
-      (sh/$ ["make"])
-      (def bin (string (dyn :pkg-out) "/bin"))
-      (os/mkdir bin)
-      (sh/$ "cp" "./busybox" bin))))
-
-(def seed-out
-  (do
-    (def new-seed
-      (pkg
-        :builder
-        (fn []
-          
-          (os/setenv "PATH" (string (seed-env :path) "/bin"))
-
-          (defn copy-bin
-            [pkg]
-            (def out-bin-dir (string (dyn :pkg-out) "/bin"))
-            (os/mkdir out-bin-dir)
-            (sh/$ ["cp" "-rT" (string (pkg :path) "/bin") out-bin-dir]))
-
-          (copy-bin dash)
-          (copy-bin coreutils)
-          (copy-bin diffutils)
-          (copy-bin findutils)
-          (copy-bin patch)
-          (copy-bin tar)
-          (copy-bin awk)
-          (copy-bin gzip)
-          (copy-bin xz)
-          (copy-bin grep)
-          (copy-bin sed)
-
-          (install-musl-cross-make-gcc
-            nil
-            nil)
-
-          (os/cd (string (dyn :pkg-out) "/bin"))
-          (os/symlink "./dash" "sh")
-          (os/symlink "./x86_64-linux-musl-ar"  "ar")
-          (os/symlink "./x86_64-linux-musl-gcc" "cc")
-          (os/symlink "./x86_64-linux-musl-gcc" "gcc")
-          (os/symlink "./x86_64-linux-musl-c++" "c++"))))
-      (pkg
-        :name "seed-out"
-        :builder
-        (fn []
-          (os/setenv "PATH" 
-            (string/join  [(string (findutils :path) "/bin")
-                           (string (new-seed :path) "/bin")] ":"))
-          (with [f (file/open (string (dyn :pkg-out) "/seed.tar.gz") :wb+)]
-            (os/cd (new-seed :path))
-            (sh/$ [
-              "sh" "-c"
-              "find . | grep -v \".hpkg.jdn\" | LC_ALL=C sort | tar --owner=root:0 --group=root:0 --mtime='UTC 2019-01-01' --no-recursion -T - -cf - | gzip -9"
-            ] :redirects [[stdout f]] ))))))
 
 (defn std-unpack-phase []
   (def src (dyn :pkg-src))
@@ -484,8 +442,7 @@
     :name name
     :builder
     (fn std-builder []
-      (unless (os/lstat "/bin/sh")
-        (os/symlink (string (dash :path) "/bin/dash") "/bin/sh"))
+      (ensure-/bin/sh)
       (def all-bin-inputs (array/concat @[] bin-inputs [core-build-env]))
       (os/setenv "PATH"
         (string/join (map |(string ($ :path) "/bin") all-bin-inputs) ":"))
@@ -517,6 +474,32 @@
           :install-phase ,install-phase)
        ,src-pkg])))
 
-(defpkg janet
-  :src-url "https://github.com/janet-lang/janet/archive/v1.7.0.tar.gz"
-  :src-hash "sha256:2a119f3a79b209a858864e73ca3efda57ac044df3c89762a31480bbea386d2a3")
+(def seed-out
+  (do
+    (def new-seed
+      (pkg
+        :builder
+        (fn []
+          (os/setenv "PATH" (string (seed-env :path) "/bin"))
+          (sh/$ ["cp" "-rv" ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out)])
+          (sh/$ ["chmod" "-R" "+w" (dyn :pkg-out)])
+          # XXX This is done for reproducibile build, is there a better way? 
+          (os/rm ;(sh/glob (string (dyn :pkg-out) "/libexec/gcc/x86_64-linux-musl/*/install-tools/fixincl")))
+          (sh/$ ["cp" (string (busybox :path) "/bin/busybox") (string (dyn :pkg-out) "/bin")])
+          (os/cd (string (dyn :pkg-out) "/bin"))
+          (each app (string/split "\n" (sh/$$_ ["./busybox" "--list"]))
+            (os/symlink "./busybox" app)))))
+      (pkg
+        :name "seed-out"
+        :content {"seed.tar.gz" {:content seed-hash}}
+        :builder
+        (fn []
+          (os/setenv "PATH" 
+            (string/join  [(string (tar :path) "/bin")
+                           (string (new-seed :path) "/bin")] ":"))
+          (with [f (file/open (string (dyn :pkg-out) "/seed.tar.gz") :wb+)]
+            (os/cd (new-seed :path))
+            (sh/$ [
+              "sh" "-c"
+              "find . | grep -v \".hpkg.jdn\" | LC_ALL=C sort | tar --owner=root:0 --group=root:0 --mtime='UTC 2019-01-01' --no-recursion -T - -cf - | gzip -9"
+            ] :redirects [[stdout f]] ))))))
