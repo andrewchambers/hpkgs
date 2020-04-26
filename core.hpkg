@@ -91,9 +91,9 @@
       (sh/$ ["make" "install"]))))
 
 (defmacro defsrc
-  [name &keys {:url url :hash hash}]
+  [name &keys {:url url :hash hash :fname fname}]
   (def src-pkg (gensym))
- ~(def ,name (,fetch :url ,url :hash ,hash)))
+ ~(def ,name (,fetch :url ,url :hash ,hash :fname ,fname)))
 
 (defmacro defcore
   [name &keys {:src-url src-url :src-hash src-hash}]
@@ -342,6 +342,11 @@
            (string/replace-all "kernel_headers && $(MAKE) "
                                "kernel_headers && $(MAKE) HOSTCFLAGS=--static ")
            (spit "litecross/Makefile"))
+      # XXX In builds that don't isolate /bin/sh, some versions of bash fail...
+      (->> (slurp "cowpatch.sh")
+                 (string/replace "#!/bin/sh"
+                                 (string "#!" (dash :path) "/bin/dash"))
+                 (spit "cowpatch.sh"))
       (sh/$ ["make" "extract_all"])
       (sh/$ ["make" (string "-j" (dyn :parallelism))])
       (sh/$ ["make" "install"])
@@ -360,7 +365,8 @@
 
 
 # The runtime package is a gcc installation with only dynamic libraries.
-(def gcc-rt
+(defn- prepare-gcc-rt
+  [remove-c++]
   (pkg
     :name "rt"
     :builder
@@ -368,6 +374,10 @@
       (os/setenv "PATH" (string (seed-env :path) "/bin"))
       (sh/$ ["cp" "-rv" ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out)])
       (sh/$ ["chmod" "-R" "+w" (dyn :pkg-out)])
+      
+      (when remove-c++
+        (sh/$ ["rm" ;(sh/glob (string (dyn :pkg-out) "/x86_64-linux-musl/lib/*c++*"))]))
+
       # Remove things that aren't dynamic libs.
       (sh/$ ["find" (dyn :pkg-out) "-not" "-name" "*.so*" "-delete"])
       
@@ -382,7 +392,8 @@
         (string (dyn :pkg-out) "/x86_64-linux-musl/etc/ld-musl-x86_64.path")
         (string (dyn :pkg-out) "/x86_64-linux-musl/lib\n")))))
 
-(def gcc
+(defn- prepare-gcc
+  [gcc-rt]
   (pkg
     :name "gcc"
     :builder
@@ -398,6 +409,12 @@
           specs))
       (spit (string (dyn :pkg-out) "/x86_64-linux-musl/lib/specs") new-specs))))
 
+
+(def gcc-rt (prepare-gcc-rt false))
+(def gcc-rt-lite (prepare-gcc-rt true))
+(def gcc (prepare-gcc gcc-rt))
+(def gcc-lite (prepare-gcc gcc-rt-lite))
+
 (def core-build-env
   (make-combined-env
     :name
@@ -412,7 +429,7 @@
 
 (defn std-unpack-phase []
   (def src (dyn :pkg-src))
-  (unpack (first (sh/glob (string (src :path) "/*")))))
+  (unpack ;(sh/glob (string (src :path) "/*"))))
 
 (defn std-configure-phase []
   (os/setenv "CFLAGS" "-O3 -fstack-protector")
@@ -501,5 +518,7 @@
             (os/cd (new-seed :path))
             (sh/$ [
               "sh" "-c"
-              "find . | grep -v \".hpkg.jdn\" | LC_ALL=C sort | tar --owner=root:0 --group=root:0 --mtime='UTC 2019-01-01' --no-recursion -T - -cf - | gzip -9"
+              "find . | grep -v \".hpkg.jdn\" | LC_ALL=C sort | tar --owner=root:0 --group=root:0 --mtime='UTC 2019-01-01' --no-recursion -v -T - -cf - | gzip -9"
             ] :redirects [[stdout f]] ))))))
+
+
