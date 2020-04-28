@@ -458,6 +458,8 @@
   (sh/$ ["make" (string "-j" (dyn :parallelism))])
   (sh/$ ["make" "install" (string "PREFIX=" (dyn :pkg-out))]))
 
+(defn std-post-install-phase [])
+
 (defn std-pkg
   [&keys {
     :name name
@@ -466,12 +468,14 @@
     :unpack-phase unpack-phase    
     :configure-phase configure-phase
     :install-phase install-phase
+    :post-install-phase post-install-phase
   }]
 
   (default bin-inputs [])
   (default unpack-phase std-unpack-phase)
   (default configure-phase std-configure-phase)
   (default install-phase std-install-phase)
+  (default post-install-phase std-post-install-phase)
 
   (pkg
     :name name
@@ -484,7 +488,8 @@
       (with-dyns [:pkg-src src]
         (unpack-phase))
       (configure-phase)
-      (install-phase))))
+      (install-phase)
+      (post-install-phase))))
 
 (defmacro defpkg
   [name &keys {
@@ -494,6 +499,7 @@
     :unpack-phase unpack-phase    
     :configure-phase configure-phase
     :install-phase install-phase
+    :post-install-phase post-install-phase
   }]
   (def src-pkg (gensym))
   (def src-name (symbol name '-src))
@@ -506,7 +512,8 @@
           :bin-inputs ,bin-inputs
           :unpack-phase ,unpack-phase    
           :configure-phase ,configure-phase
-          :install-phase ,install-phase)
+          :install-phase ,install-phase
+          :post-install-phase ,post-install-phase)
        ,src-pkg])))
 
 (def seed-out
