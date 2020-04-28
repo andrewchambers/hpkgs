@@ -210,29 +210,41 @@
   :src-hash
     "sha256:b512f3b726d3b37b6dc4c8570e137b9311e7552e8ccbab4d39d47ce5f4177145")
 
+(defn link-farm
+  [paths dest &opt pred]
+  (each p paths
+    (each name (os/dir p)
+      (def path (string p "/" name))
+      (def link (string dest "/" name))
+      (unless (os/lstat link)
+        (when (or (nil? pred) (pred path))
+          (def target (os/realpath (string p "/" name)))
+          (os/symlink target link))))))
+
 (defn make-combined-env
   [&keys {:name name
           :bin-pkgs bin-pkgs
+          :lib-pkgs lib-pkgs
           :post-build post-build}]
   (default bin-pkgs [])
   (pkg
     :name name
     :builder
     (fn []
-      (os/mkdir (string (dyn :pkg-out) "/bin"))
-      (each pkg bin-pkgs
-        (def pkg-bin-dir (string (pkg :path) "/bin"))
-        (each bin (os/dir pkg-bin-dir)
-          (def from
-            (string (os/realpath (string pkg-bin-dir "/" bin))))
-          (def to (string (dyn :pkg-out) "/bin/" bin))
-          (unless (os/stat to)
-            (os/symlink from to))))
-      (def activate-script (string (dyn :pkg-out) "/activate"))
-      (spit activate-script 
-        (string
-          "export PATH=" (string (dyn :pkg-out) "/bin") "\n"))
-      (os/chmod activate-script 8r555)
+      (when bin-pkgs
+        (def bin-out (string (dyn :pkg-out) "/bin"))
+        (os/mkdir bin-out)
+        (link-farm (map |(string ($ :path) "/bin") bin-pkgs) bin-out))
+      (when lib-pkgs
+        (def lib-out (string (dyn :pkg-out) "/lib"))
+        (def pkgconfig-out (string lib-out "/pkgconfig"))
+        (os/mkdir lib-out)
+        (os/mkdir pkgconfig-out)
+        (def lib-dirs (map |(string ($ :path) "/lib") lib-pkgs))
+        (def pkgconfig-dirs (filter os/stat (map |(string $ "/pkgconfig") lib-dirs)))
+        (def reg? |(= (get (os/stat $) :mode) :file))
+        (link-farm lib-dirs lib-out reg?)
+        (link-farm pkgconfig-dirs pkgconfig-out reg?))
       (when post-build
         (post-build)))))
 
@@ -357,6 +369,7 @@
           (os/symlink "./x86_64-linux-musl-ar" "ar")
           (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
           (os/symlink "./x86_64-linux-musl-strip" "strip")
+          (os/symlink "./x86_64-linux-musl-objdump" "objdump")
           (os/symlink "./x86_64-linux-musl-gcc" "cc")
           (os/symlink "./x86_64-linux-musl-gcc" "gcc")
           (os/symlink "./x86_64-linux-musl-c++" "c++")
@@ -425,7 +438,12 @@
         gcc
         pkgconf
         make
-      ]))
+      ]
+    :post-build
+      (fn
+        []
+        (os/cd (string (dyn :pkg-out) "/bin"))
+        (os/symlink "pkgconf" "pkg-config"))))
 
 (defn std-unpack-phase []
   (def src (dyn :pkg-src))
@@ -520,5 +538,3 @@
               "sh" "-c"
               "find . | grep -v \".hpkg.jdn\" | LC_ALL=C sort | tar --owner=root:0 --group=root:0 --mtime='UTC 2019-01-01' --no-recursion -v -T - -cf - | gzip -9"
             ] :redirects [[stdout f]] ))))))
-
-
