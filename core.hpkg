@@ -343,7 +343,7 @@
           "TARGET=x86_64-linux-musl\n"
           "LINUX_VER = 4.19.90\n"
           "OUTPUT=" (dyn :pkg-out) "\n"
-          "GCC_CONFIG += --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point --disable-lto\n"
+          "GCC_CONFIG += --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point\n"
           "COMMON_CONFIG += CC=\"gcc -static --static\"\n"
           "COMMON_CONFIG += CXX=\"g++ -static --static\"\n"
           "COMMON_CONFIG += CFLAGS=\"-O3\" CXXFLAGS=\"-O3\" LDFLAGS=\"-s\"\n"
