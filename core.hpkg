@@ -455,8 +455,9 @@
     (sh/$ ["./configure" "--prefix" (dyn :pkg-out)])))
 
 (defn std-install-phase []
-  (sh/$ ["make" (string "-j" (dyn :parallelism))])
-  (sh/$ ["make" "install" (string "PREFIX=" (dyn :pkg-out))]))
+  (def pfx (string "PREFIX=" (dyn :pkg-out)))
+  (sh/$ ["make" pfx (string "-j" (dyn :parallelism))])
+  (sh/$ ["make" "install" pfx]))
 
 (defn std-post-install-phase [])
 
