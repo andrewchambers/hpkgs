@@ -1,0 +1,15 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc bash-src
+  :url "https://ftp.gnu.org/gnu/bash/bash-5.0.tar.gz"
+  :hash "sha256:b4a80f2ac66170b2913efbfb9f2594f1f76c7b1afd11f799e22035d63077fb4d")
+
+(defpkg bash
+  :builder
+  (fn []
+    (os/setenv "PATH" (pkg-path "/bin" core/build-env))
+    (unpack-src bash-src)
+    (sh/$ ./configure --without-bash-malloc "--prefix=" ^ (dyn :pkg-out))
+    (sh/$ make  -j (dyn :parallelism))
+    (sh/$ make install)))
