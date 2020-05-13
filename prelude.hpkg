@@ -1,0 +1,36 @@
+
+# Some suggestions to packages.
+(def *default-cflags* "-O2 -fstack-protector")
+(def *default-ldflags* "-s")
+
+(defn pkg-path
+  [sfx pkg]
+  (string (pkg :path) sfx))
+
+(defn join-pkg-paths
+  [sep sfx pkgs]
+  (string/join (map |(pkg-path sfx $) pkgs) sep))
+
+(defn link-farm
+  [paths dest &opt pred]
+  (each p paths
+    (each name (os/dir p)
+      (def path (string p "/" name))
+      (def link (string dest "/" name))
+      (unless (os/lstat link)
+        (when (or (nil? pred) (pred path))
+          (def target (os/realpath (string p "/" name)))
+          (os/symlink target link))))))
+
+(defmacro defsrc
+  [name &keys {:url url :hash hash :fname fname}]
+  (def src-pkg (gensym))
+ ~(def ,name (,fetch :url ,url :hash ,hash :fname ,fname)))
+
+(defn unpack-src
+  [src-pkg]
+  (unpack ;(sh/glob (string (src-pkg :path) "/*"))))
+
+(defmacro defpkg
+  [name &keys {:builder builder}]
+ ~(def ,name (,pkg :name ,(string name) :builder ,builder)))

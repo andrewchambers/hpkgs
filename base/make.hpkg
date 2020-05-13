@@ -1,0 +1,20 @@
+(use ../prelude)
+(use ../seed)
+
+(defsrc make-src
+  :url
+    "https://ftp.gnu.org/gnu/make/make-4.2.tar.gz"
+  :hash
+    "sha256:e968ce3c57ad39a593a92339e23eb148af6296b9f40aa453a9a9202c99d34436")
+
+(defpkg make
+  :builder
+  (fn []
+    (os/setenv "PATH" (pkg-path "/bin" seed))
+    (os/setenv "CC" "x86_64-linux-musl-gcc --static")
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src make-src)
+    (sh/$ ./configure --prefix (dyn :pkg-out))
+    (sh/$ ./build.sh)
+    (sh/$ ./make install)))

@@ -1,0 +1,27 @@
+(use ../prelude)
+(use ../seed)
+(use ./make)
+
+(defsrc busybox-src
+  :url
+    "https://busybox.net/downloads/busybox-1.31.1.tar.bz2"
+  :hash
+    "sha256:d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998")
+
+(defpkg busybox
+  :builder
+  (fn []
+    (os/setenv "PATH" (join-pkg-paths ":" "/bin" [seed make]))
+    (os/setenv "KCONFIG_NOTIMESTAMP" "1")
+    (def out-bin-dir (string (dyn :pkg-out) "/bin"))
+    (def make-args [
+      "HOSTCC=gcc --static"
+      "LDFLAGS=--static"
+      (string "CFLAGS=" *default-cflags*)
+    ])
+    (os/mkdir out-bin-dir)
+    (unpack-src busybox-src)
+    (sh/$ make ;make-args defconfig)
+    (sh/$ make ;make-args -j (dyn :parallelism) busybox)
+    (sh/$ cp ./busybox ,out-bin-dir)))
+

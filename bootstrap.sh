@@ -83,6 +83,7 @@ then
     ln -s ./busybox $app
   done
   ln -s ./x86_64-linux-musl-ar ar
+  ln -s ./x86_64-linux-musl-objcopy objcopy
   ln -s ./x86_64-linux-musl-strip strip
   ln -s ./x86_64-linux-musl-ranlib ranlib
   ln -s ./x86_64-linux-musl-gcc cc
