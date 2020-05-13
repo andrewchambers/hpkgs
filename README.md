@@ -6,15 +6,18 @@ This repository is self hosting and totally hermetic.
 
 # The Binary Seed
 
-The only input is the seed.hpkg which contains a binary seed, all packages
-are derived from this binary seed.
+```seed.hpkg``` which contains a binary seed, all packages
+are derived from this binary seed. This binary seed
+contains a statically linked busybox and musl-gcc. 
+
+Hermes uses this binary seed to avoid depending on any system
+software installed on your system, creating a self contained and
+auditable package set.
 
 ## Regenerating your own seed
 
-
 ### Bootstrapping
 To regenerate your own bootstrap binary seed from another linux distro you can use bootstrap.sh.
-
 
 ### Using hermes 
 
@@ -24,4 +27,7 @@ when hermes is installed in multi user mode.
 To do so simply run:
 
 ```hermes build -m seed-out.hpkg```
+
+The hash of this file should match the hash of the input seed, meaning you
+have a self hosted software environment with access to all source code.
 
