@@ -138,6 +138,7 @@
 (defcore pkgconf :extra-cfg ["--enable-shared=no"])
 (defcore sed)
 (defcore grep)
+(defcore gzip)
 (defcore which)
 (defcore tar)
 (defcore lzip)
@@ -171,6 +172,7 @@
       diffutils
       findutils
       grep
+      gzip
       lzip
       patch
       sed

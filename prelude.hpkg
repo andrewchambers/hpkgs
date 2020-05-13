@@ -31,5 +31,5 @@
   (unpack ;(sh/glob (string (src-pkg :path) "/*"))))
 
 (defmacro defpkg
-  [name &keys {:builder builder}]
- ~(def ,name (,pkg :name ,(string name) :builder ,builder)))
+  [name &keys kwargs]
+ ~(def ,name ,(tuple pkg :name (string name) ;(kvs kwargs))))
