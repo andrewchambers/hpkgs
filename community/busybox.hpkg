@@ -1,6 +1,5 @@
 (use ../prelude)
-(use ../seed)
-(use ./make)
+(import ../core)
 
 (defsrc busybox-src
   :url
@@ -11,7 +10,7 @@
 (defpkg busybox
   :builder
   (fn []
-    (os/setenv "PATH" (join-pkg-paths ":" "/bin" [seed make]))
+    (os/setenv "PATH" (pkg-path "/bin" core/build-env))
     (os/setenv "KCONFIG_NOTIMESTAMP" "1")
     (def out-bin-dir (string (dyn :pkg-out) "/bin"))
     (def make-args [
@@ -23,5 +22,7 @@
     (unpack-src busybox-src)
     (sh/$ make ;make-args defconfig)
     (sh/$ make ;make-args -j (dyn :parallelism) busybox)
-    (sh/$ cp ./busybox ,out-bin-dir)))
-
+    (sh/$ cp ./busybox ,out-bin-dir)
+    (os/cd out-bin-dir)
+    (each app (string/split "\n" (sh/$<_ ./busybox --list))
+      (os/symlink "./busybox" app))))

@@ -1,0 +1,347 @@
+(use ./prelude)
+(use ./seed)
+
+(defsrc make-src
+  :url
+    "https://ftp.gnu.org/gnu/make/make-4.2.tar.gz"
+  :hash
+    "sha256:e968ce3c57ad39a593a92339e23eb148af6296b9f40aa453a9a9202c99d34436")
+
+(defsrc dash-src
+  :url
+    "http://gondor.apana.org.au/~herbert/dash/files/dash-0.5.10.tar.gz"
+  :hash
+    "sha256:ad70e0cc3116b424931c392912b3ebdb8053b21f3fd968c782f0b19fd8ae31ab")
+
+(defsrc coreutils-src
+  :url
+    "https://ftp.gnu.org/gnu/coreutils/coreutils-8.31.tar.xz"
+  :hash
+    "sha256:ff7a9c918edce6b4f4b2725e3f9b37b0c4d193531cac49a48b56c4d0d3a9e9fd")
+
+(defsrc awk-src
+  :url
+    "https://ftp.gnu.org/gnu/gawk/gawk-5.0.1.tar.xz"
+  :hash
+    "sha256:8e4e86f04ed789648b66f757329743a0d6dfb5294c3b91b756a474f1ce05a794")
+
+(defsrc diffutils-src
+  :url
+    "https://ftp.gnu.org/gnu/diffutils/diffutils-3.7.tar.xz"
+  :hash
+    "sha256:b3a7a6221c3dc916085f0d205abf6b8e1ba443d4dd965118da364a1dc1cb3a26")
+
+(defsrc findutils-src
+  :url
+    "https://ftp.gnu.org/pub/gnu/findutils/findutils-4.7.0.tar.xz"
+  :hash
+    "sha256:c5fefbdf9858f7e4feb86f036e1247a54c79fc2d8e4b7064d5aaa1f47dfa789a")
+
+(defsrc patch-src
+  :url
+    "https://ftp.gnu.org/gnu/patch/patch-2.7.tar.gz"
+  :hash
+    "sha256:59c29f56faa0a924827e6a60c6accd6e2900eae5c6aaa922268c717f06a62048")
+
+(defsrc pkgconf-src
+  :url
+    "https://distfiles.dereferenced.org/pkgconf/pkgconf-1.6.3.tar.xz"
+  :hash
+    "sha256:61f0b31b0d5ea0e862b454a80c170f57bad47879c0c42bd8de89200ff62ea210")
+
+(defsrc sed-src
+  :url
+    "https://ftp.gnu.org/gnu/sed/sed-4.7.tar.xz"
+  :hash
+    "sha256:2885768cd0a29ff8d58a6280a270ff161f6a3deb5690b2be6c49f46d4c67bd6a")
+
+(defsrc grep-src
+  :url
+    "https://ftp.gnu.org/gnu/grep/grep-3.3.tar.xz"
+  :hash
+    "sha256:b960541c499619efd6afe1fa795402e4733c8e11ebf9fafccc0bb4bccdc5b514")
+
+(defsrc which-src
+  :url
+    "https://ftp.gnu.org/gnu/which/which-2.21.tar.gz"
+  :hash
+    "sha256:f4a245b94124b377d8b49646bf421f9155d36aa7614b6ebf83705d3ffc76eaad")
+
+(defsrc tar-src
+  :url
+    "https://ftp.gnu.org/gnu/tar/tar-1.32.tar.gz"
+  :hash
+    "sha256:b59549594d91d84ee00c99cf2541a3330fed3a42c440503326dab767f2fbb96c")
+
+(defsrc gzip-src
+  :url
+    "https://ftp.gnu.org/gnu/gzip/gzip-1.10.tar.gz"
+  :hash
+    "sha256:c91f74430bf7bc20402e1f657d0b252cb80aa66ba333a25704512af346633c68")
+
+(defsrc bzip2-src
+  :url
+    "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+  :hash
+    "sha256:ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269")
+
+(defsrc lzip-src
+  :url
+    "http://download.savannah.gnu.org/releases/lzip/lzip-1.21.tar.gz"
+  :hash
+    "sha256:e48b5039d3164d670791f9c5dbaa832bf2df080cb1fbb4f33aa7b3300b670d8b")
+
+(defsrc xz-src
+  :url
+    "https://tukaani.org/xz/xz-5.2.4.tar.gz"
+  :hash
+    "sha256:b512f3b726d3b37b6dc4c8570e137b9311e7552e8ccbab4d39d47ce5f4177145")
+
+# We use make in core-build, so bootstrap it first.
+(defpkg make
+  :builder
+  (fn []
+    (os/setenv "PATH" (pkg-path "/bin" seed))
+    (os/setenv "CC" "x86_64-linux-musl-gcc --static")
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src make-src)
+    (sh/$ ./configure --prefix (dyn :pkg-out))
+    (sh/$ ./build.sh)
+    (sh/$ ./make install)))
+
+(defn- core-builder
+  [src extra-cfg]
+  (default extra-cfg [])
+  (os/setenv "PATH" (join-pkg-paths ":" "/bin" [seed make]))
+  (unpack-src src)
+  (os/setenv "CC" "x86_64-linux-musl-gcc --static")
+  (os/setenv "CFLAGS" *default-cflags*)
+  (os/setenv "LDFLAGS" *default-ldflags*)
+  (sh/$ ash ./configure ;extra-cfg --prefix= ^ (dyn :pkg-out))
+  (sh/$ make CFLAGS= ^ ,*default-cflags*
+               -j (dyn :parallelism))
+  (sh/$ make install))
+
+(defmacro- defcore
+  [name &keys {:extra-cfg extra-cfg}]
+ ~(defpkg ,name
+    :builder
+    |(core-builder ,(symbol name "-src") ,extra-cfg)))
+
+(defcore dash)
+(defcore coreutils)
+(defcore awk)
+(defcore diffutils)
+(defcore findutils)
+(defcore patch)
+(defcore pkgconf :extra-cfg ["--enable-shared=no"])
+(defcore sed)
+(defcore grep)
+(defcore which)
+(defcore tar)
+(defcore lzip)
+(defcore xz :extra-cfg ["--enable-shared=no"])
+
+# bzip2 doesn't really fit any pattern
+(defpkg bzip2
+  :builder
+  (fn []
+    (os/setenv "PATH" (join-pkg-paths ":" "/bin" [seed make]))
+    (unpack-src bzip2-src)
+    (->> (slurp "Makefile")
+         (string/replace "SHELL=/bin/sh" "SHELL=sh")
+         (spit "Makefile"))
+    (sh/$ 
+      make install
+      -j (dyn :parallelism)
+      CC= ^ "x86_64-linux-musl-gcc --static"
+      CFLAGS= ^ ,*default-cflags*
+      LDFLAGS= ^ ,*default-ldflags*
+      PREFIX= ^ (dyn :pkg-out))))
+
+(defpkg core-env
+  :builder
+  (fn []
+    (def pkgs [
+      awk
+      bzip2
+      coreutils
+      dash
+      diffutils
+      findutils
+      grep
+      lzip
+      patch
+      sed
+      tar
+      which
+      xz
+    ])
+    (def bin-out (string (dyn :pkg-out) "/bin"))
+    (os/mkdir bin-out)
+    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)
+    (os/cd bin-out)
+    (os/symlink "./dash" "sh")))
+
+(defsrc musl-cross-make-src
+  :url "https://github.com/richfelker/musl-cross-make/archive/v0.9.9.tar.gz"
+  :hash "sha256:ff3e2188626e4e55eddcefef4ee0aa5a8ffb490e3124850589bcaf4dd60f5f04")
+
+(defsrc gcc-src
+  :url "https://ftp.gnu.org/pub/gnu/gcc/gcc-9.2.0/gcc-9.2.0.tar.xz"
+  :hash "sha256:ea6ef08f121239da5695f76c9b33637a118dcf63e24164422231917fa61fb206")
+
+(defsrc binutils-src
+  :url "https://ftp.gnu.org/pub/gnu/binutils/binutils-2.33.1.tar.xz"
+  :hash "sha256:ab66fc2d1c3ec0359b8e08843c9f33b63e8707efdff5e4cc5c200eae24722cbf")
+
+(defsrc gmp-src
+  :url "https://ftp.gnu.org/pub/gnu/gmp/gmp-6.1.2.tar.bz2"
+  :hash "sha256:5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2")
+
+(defsrc mpc-src
+  :url "https://ftp.gnu.org/gnu/mpc/mpc-1.1.0.tar.gz"
+  :hash "sha256:6985c538143c1208dcb1ac42cedad6ff52e267b47e5f970183a3e75125b43c2e")
+
+(defsrc mpfr-src
+  :url "https://ftp.gnu.org/pub/gnu/mpfr/mpfr-4.0.2.tar.bz2"
+  :hash "sha256:c05e3f02d09e0e9019384cdd58e0f19c64e6db1fd6f5ecf77b4b1c61ca253acc")
+
+(defsrc musl-src
+  :url "https://www.musl-libc.org/releases/musl-1.2.0.tar.gz"
+  :hash "sha256:c6de7b191139142d3f9a7b5b702c9cae1b5ee6e7f57e582da9328629408fd4e8")
+
+(defsrc gcc-linux-src
+  :url "https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.19.90.tar.xz"
+  :hash "sha256:29d86c0a6daf169ec0b4b42a12f8d55dc894c52bd901f876f52a05906a5cf7fd")
+
+# XXX Why does musl cross make download this?
+(def- config.sub
+  (fetch
+    :url "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=3d5db9ebe860"
+    :hash "sha256:75d5d255a2a273b6e651f82eecfabf6cbcd8eaeae70e86b417384c8f4a58d8d3"
+    :file-name "config.sub"))
+
+(def mcm-gcc
+  (pkg
+    :name "mcm-gcc"
+    :builder
+    (fn []
+      # Can we fix the buid scripts and pass them the shell?
+      (unless (os/lstat "/bin/sh")
+        (os/symlink (string (seed :path) "/bin/busybox") "/bin/sh"))
+
+      (defn archive-path
+        [src-pkg]
+        (first (sh/glob (string (src-pkg :path) "/*"))))
+
+      (os/setenv "PATH" (join-pkg-paths ":" "/bin" [make patch seed]))
+      (unpack (archive-path musl-cross-make-src))
+
+      (os/mkdir "sources")
+      (each src [gcc-src binutils-src musl-src gmp-src mpc-src mpfr-src gcc-linux-src]
+        (sh/$ cp (archive-path src) "./sources"))
+      (sh/$ cp (string (config.sub :path) "/config.sub") "./sources")
+      
+      (spit "config.mak"
+        (string
+          "TARGET=x86_64-linux-musl\n"
+          "LINUX_VER = 4.19.90\n"
+          "OUTPUT=" (dyn :pkg-out) "\n"
+          "GCC_CONFIG += --disable-libquadmath --disable-decimal-float --disable-libitm --disable-fixed-point\n"
+          "COMMON_CONFIG += CC=\"gcc -static --static\"\n"
+          "COMMON_CONFIG += CXX=\"g++ -static --static\"\n"
+          "COMMON_CONFIG += CFLAGS=\"-O3\" CXXFLAGS=\"-O3\" LDFLAGS=\"-s\"\n"
+          "DL_CMD=false\n"
+          "COWPATCH=" (os/cwd) "/cowpatch.sh\n"))
+      # XXX This patch is not very robust, remove it if you find a better way.
+      (->> (slurp "litecross/Makefile")
+           (string/replace-all "kernel_headers && $(MAKE) "
+                               "kernel_headers && $(MAKE) HOSTCFLAGS=--static ")
+           (spit "litecross/Makefile"))
+      # XXX In builds that don't isolate /bin/sh, some versions of bash fail...
+      (->> (slurp "cowpatch.sh")
+                 (string/replace "#!/bin/sh"
+                                 (string "#!" (dash :path) "/bin/dash"))
+                 (spit "cowpatch.sh"))
+      
+      (sh/$ make extract_all)
+      (sh/$ make -j (dyn :parallelism))
+      (sh/$ make install)
+      
+      (os/cd (string (dyn :pkg-out) "/bin"))
+      (os/symlink "./x86_64-linux-musl-ar" "ar")
+      (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
+      (os/symlink "./x86_64-linux-musl-strip" "strip")
+      (os/symlink "./x86_64-linux-musl-objdump" "objdump")
+      (os/symlink "./x86_64-linux-musl-gcc" "cc")
+      (os/symlink "./x86_64-linux-musl-gcc" "gcc")
+      (os/symlink "./x86_64-linux-musl-c++" "c++")
+      (os/symlink "./x86_64-linux-musl-c++" "g++")
+      (os/symlink "./x86_64-linux-musl-ld" "ld"))))
+
+# The runtime package is a gcc installation with only dynamic libraries.
+(defn- prepare-gcc-rt
+  [remove-c++]
+  (pkg
+    :name "rt"
+    :builder
+    (fn []
+      (os/setenv "PATH" (string (seed :path) "/bin"))
+      (sh/$ cp -rv ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out))
+      (sh/$ chmod -R +w (dyn :pkg-out))
+      
+      (when remove-c++
+        (sh/$ rm ;(sh/glob (string (dyn :pkg-out) "/x86_64-linux-musl/lib/*c++*"))))
+
+      # Remove things that aren't dynamic libs.
+      (sh/$ find (dyn :pkg-out) -not -name *.so* -delete)
+      
+      # XXX Fix broken link, why is this broken?
+      (def ld.so (string (dyn :pkg-out) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1"))
+      (os/rm ld.so)
+      (os/symlink "libc.so" ld.so)
+      
+      # Manually configure path with musl config.
+      (os/mkdir (string (dyn :pkg-out) "/x86_64-linux-musl/etc"))
+      (spit 
+        (string (dyn :pkg-out) "/x86_64-linux-musl/etc/ld-musl-x86_64.path")
+        (string (dyn :pkg-out) "/x86_64-linux-musl/lib\n")))))
+
+(defn- prepare-gcc
+  [gcc-rt]
+  (pkg
+    :name "gcc"
+    :builder
+    (fn []
+      (os/setenv "PATH" (string (seed :path) "/bin"))
+      (sh/$ cp -rv ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out))
+      (sh/$ chmod -R +w (dyn :pkg-out))
+      (def specs (sh/$< (string (dyn :pkg-out)  "/bin/gcc") -dumpspecs))
+      (def new-specs
+        (string/replace-all
+          "/lib/ld-musl-x86_64.so.1"
+          (string (gcc-rt :path) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
+          specs))
+      (spit (string (dyn :pkg-out) "/x86_64-linux-musl/lib/specs") new-specs))))
+
+(def gcc-rt (prepare-gcc-rt false))
+(def gcc-rt-lite (prepare-gcc-rt true))
+(def gcc (prepare-gcc gcc-rt))
+(def gcc-lite (prepare-gcc gcc-rt-lite))
+
+(defpkg build-env
+  :builder
+  (fn []
+    (def pkgs [
+      core-env
+      pkgconf
+      make
+      gcc
+    ])
+    (def bin-out (string (dyn :pkg-out) "/bin"))
+    (os/mkdir bin-out)
+    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)
+    (os/cd bin-out)
+    (os/symlink "./pkgconf" "pkg-config")))

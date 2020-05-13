@@ -24,7 +24,6 @@
 
 (defmacro defsrc
   [name &keys {:url url :hash hash :fname fname}]
-  (def src-pkg (gensym))
  ~(def ,name (,fetch :url ,url :hash ,hash :fname ,fname)))
 
 (defn unpack-src
