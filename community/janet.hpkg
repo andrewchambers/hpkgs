@@ -1,0 +1,18 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc janet-src
+  :fname
+    "janet.tar.gz"
+  :url
+    "https://github.com/janet-lang/janet/archive/v1.9.1.tar.gz"
+  :hash
+    "sha256:02724d6074a0d6fa53a548e8bdaaf49999f082e30b277c73444900f739a53062")
+
+(defpkg janet
+  :builder
+  (fn []
+    (os/setenv "PATH" (pkg-path "/bin" core/build-env))
+    (unpack-src janet-src)
+    (sh/$ make PREFIX= ^ (dyn :pkg-out) -j (dyn :parallelism))
+    (sh/$ make PREFIX= ^ (dyn :pkg-out) install)))
