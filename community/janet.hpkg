@@ -3,11 +3,11 @@
 
 (defsrc janet-src
   :fname
-    "janet.tar.gz"
+  "janet.tar.gz"
   :url
-    "https://github.com/janet-lang/janet/archive/v1.9.1.tar.gz"
+  "https://github.com/janet-lang/janet/archive/v1.9.1.tar.gz"
   :hash
-    "sha256:02724d6074a0d6fa53a548e8bdaaf49999f082e30b277c73444900f739a53062")
+  "sha256:02724d6074a0d6fa53a548e8bdaaf49999f082e30b277c73444900f739a53062")
 
 (defpkg janet
   :builder

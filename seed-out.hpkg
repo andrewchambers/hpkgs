@@ -25,10 +25,10 @@
     (os/setenv "PATH" (join-pkg-paths ":" "/bin" [core/tar core/gzip new-seed]))
     (os/cd (new-seed :path))
     (with [f (file/open (string (dyn :pkg-out) "/seed.tar.gz") :wb+)]
-      (sh/$ 
+      (sh/$
         find .
-        | grep -v ".hpkg.jdn"
-        | sort
-        | tar --owner=root:0 --group=root:0 "--mtime=UTC 2019-01-01" --no-recursion -v -T - -cf -
-        | gzip -9
-        > ,f)))))
+        |grep -v ".hpkg.jdn"
+        |sort
+        |tar --owner=root:0 --group=root:0 "--mtime=UTC 2019-01-01" --no-recursion -v -T - -cf -
+        |gzip -9
+        > ,f))))

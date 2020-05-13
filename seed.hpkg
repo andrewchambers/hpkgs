@@ -3,13 +3,13 @@
 (def seed
   (fetch
     :url
-      "https://github.com/andrewchambers/hermes-seeds/raw/master/seed.tar.gz"
+    "https://github.com/andrewchambers/hermes-seeds/raw/master/seed.tar.gz"
     :hash
-      seed-hash))
+    seed-hash))
 
 (def seed
   (pkg
     :name
-      "seed"
+    "seed"
     :builder
-      |(unpack ;(sh/glob (string (seed :path) "/*")) :dest (dyn :pkg-out))))
+    |(unpack ;(sh/glob (string (seed :path) "/*")) :dest (dyn :pkg-out))))

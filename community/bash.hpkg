@@ -13,5 +13,5 @@
     (os/setenv "PATH" (pkg-path "/bin" core/build-env))
     (unpack-src bash-src)
     (sh/$ ./configure --without-bash-malloc "--prefix=" ^ (dyn :pkg-out))
-    (sh/$ make  -j (dyn :parallelism))
+    (sh/$ make -j (dyn :parallelism))
     (sh/$ make install)))

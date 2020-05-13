@@ -3,9 +3,9 @@
 
 (defsrc busybox-src
   :url
-    "https://busybox.net/downloads/busybox-1.31.1.tar.bz2"
+  "https://busybox.net/downloads/busybox-1.31.1.tar.bz2"
   :hash
-    "sha256:d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998")
+  "sha256:d0f940a72f648943c1f2211e0e3117387c31d765137d92bd8284a3fb9752a998")
 
 (defpkg busybox
   :builder
@@ -15,11 +15,9 @@
     (os/setenv "PATH" (pkg-path "/bin" core/build-env))
     (os/setenv "KCONFIG_NOTIMESTAMP" "1")
     (def out-bin-dir (string (dyn :pkg-out) "/bin"))
-    (def make-args [
-      "HOSTCC=gcc --static"
-      "LDFLAGS=--static"
-      (string "CFLAGS=" *default-cflags*)
-    ])
+    (def make-args ["HOSTCC=gcc --static"
+                    "LDFLAGS=--static"
+                    (string "CFLAGS=" *default-cflags*)])
     (os/mkdir out-bin-dir)
     (unpack-src busybox-src)
     (sh/$ make ;make-args defconfig)
