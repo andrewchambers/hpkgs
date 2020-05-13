@@ -21,6 +21,10 @@
           (def target (os/realpath (string p "/" name)))
           (os/symlink target link))))))
 
+(defn rewrite
+  [p xform]
+  (spit p (xform (slurp p))))
+
 (defmacro defsrc
   [name &keys {:url url :hash hash :fname fname}]
   ~(def ,name (,fetch :url ,url :hash ,hash :fname ,fname)))
