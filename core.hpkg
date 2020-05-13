@@ -155,9 +155,8 @@
   (fn []
     (os/setenv "PATH" (join-pkg-paths ":" "/bin" [seed make]))
     (unpack-src bzip2-src)
-    (->> (slurp "Makefile")
-         (string/replace "SHELL=/bin/sh" "SHELL=sh")
-         (spit "Makefile"))
+    (rewrite "Makefile"
+             |(string/replace "SHELL=/bin/sh" "SHELL=sh" $))
     (sh/$
       make install
       -j (dyn :parallelism)
@@ -262,15 +261,15 @@
               "DL_CMD=false\n"
               "COWPATCH=" (os/cwd) "/cowpatch.sh\n"))
       # XXX This patch is not very robust, remove it if you find a better way.
-      (->> (slurp "litecross/Makefile")
-           (string/replace-all "kernel_headers && $(MAKE) "
-                               "kernel_headers && $(MAKE) HOSTCFLAGS=--static ")
-           (spit "litecross/Makefile"))
+      (rewrite "litecross/Makefile"
+               |(string/replace-all "kernel_headers && $(MAKE) "
+                                    "kernel_headers && $(MAKE) HOSTCFLAGS=--static "
+                                    $))
       # XXX In builds that don't isolate /bin/sh, some versions of bash fail...
-      (->> (slurp "cowpatch.sh")
-           (string/replace "#!/bin/sh"
-                           (string "#!" (dash :path) "/bin/dash"))
-           (spit "cowpatch.sh"))
+      (rewrite "cowpatch.sh"
+               |(string/replace "#!/bin/sh"
+                                (string "#!" (dash :path) "/bin/dash")
+                                $))
 
       (sh/$ make extract_all)
       (sh/$ make -j (dyn :parallelism))
