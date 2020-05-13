@@ -106,6 +106,8 @@
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
     (unpack-src make-src)
+    (unless (os/lstat "/bin/sh")
+      (os/symlink (pkg-path "/bin/busybox" seed) "/bin/sh"))
     (sh/$ ./configure --prefix (dyn :pkg-out))
     (sh/$ ./build.sh)
     (sh/$ ./make install)))
@@ -118,6 +120,8 @@
   (os/setenv "CC" "x86_64-linux-musl-gcc --static")
   (os/setenv "CFLAGS" *default-cflags*)
   (os/setenv "LDFLAGS" *default-ldflags*)
+  (unless (os/lstat "/bin/sh")
+    (os/symlink (pkg-path "/bin/busybox" seed) "/bin/sh"))
   (sh/$ ash ./configure ;extra-cfg --prefix= ^ (dyn :pkg-out))
   (sh/$ make CFLAGS= ^ ,*default-cflags*
                -j (dyn :parallelism))

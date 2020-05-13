@@ -10,6 +10,8 @@
 (defpkg busybox
   :builder
   (fn []
+    (unless (os/lstat "/bin/sh")
+      (os/symlink (pkg-path "/bin/dash" core/dash) "/bin/sh"))
     (os/setenv "PATH" (pkg-path "/bin" core/build-env))
     (os/setenv "KCONFIG_NOTIMESTAMP" "1")
     (def out-bin-dir (string (dyn :pkg-out) "/bin"))

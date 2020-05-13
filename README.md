@@ -9,11 +9,11 @@ This repository is self hosting and totally hermetic.
 ```seed.hpkg``` contains the definitions of the binary seed package,
 all other packages are derived from this binary seed.
 
-Hermes uses this binary seed to avoid depending on any system
-software installed on your system, creating a self contained and
-auditable package set. 
+Hermes uses this binary seed to avoid depending on any
+software installed on your system.
 
-This binary seed contains a statically linked busybox and musl-gcc. 
+This binary seed itself contains a statically linked busybox and musl-gcc
+which is enough to bootstrap all the other software..
 
 ## Regenerating your own seed
 
