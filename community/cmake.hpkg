@@ -1,0 +1,25 @@
+(use ../prelude)
+(use ../core)
+
+(defsrc cmake-src
+  :url
+  "https://github.com/Kitware/CMake/releases/download/v3.17.2/cmake-3.17.2.tar.gz"
+  :hash
+  "sha256:fc77324c4f820a09052a7785549b8035ff8d3461ded5bbd80d252ae7d1cd3aa5")
+
+(defpkg cmake
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [coreutils gcc grep make sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src cmake-src)
+    (link-/bin/sh)
+    (sh/$ ./configure
+          (string "--prefix=" (dyn :pkg-out))
+          --
+          -DCMAKE_USE_OPENSSL=OFF)
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
