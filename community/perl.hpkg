@@ -25,13 +25,7 @@
                                   $))
     (os/chmod "dist/PathTools/Cwd.pm" 8r444)
     # other assumed bits
-    (unless (os/lstat "/bin/sh")
-      (os/symlink (string (dash :path) "/bin/dash")
-                  "/bin/sh"))
-    # XXX: work-around for there not being a symlink already
-    (unless (os/lstat "/bin/nm")
-      (os/symlink (string (gcc :path) "/bin/x86_64-linux-musl-nm")
-                  "/bin/nm"))
+    (link-/bin/sh)
     (sh/$ ./configure.gnu
           -Dprefix= ^ (dyn :pkg-out)
           -Dcc=gcc)
