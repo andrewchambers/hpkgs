@@ -1,0 +1,23 @@
+(use ../prelude)
+(use ../core)
+
+(defsrc m4-src
+  :url
+  "https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.xz"
+  :hash
+  "sha256:f2c1e86ca0a404ff281631bdc8377638992744b175afb806e25871a24a934e07")
+
+(defpkg m4
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [awk coreutils gcc grep make sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src m4-src)
+    (link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
