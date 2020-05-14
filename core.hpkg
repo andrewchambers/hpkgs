@@ -277,14 +277,16 @@
 
       (os/cd (string (dyn :pkg-out) "/bin"))
       (os/symlink "./x86_64-linux-musl-ar" "ar")
-      (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
-      (os/symlink "./x86_64-linux-musl-strip" "strip")
-      (os/symlink "./x86_64-linux-musl-objdump" "objdump")
-      (os/symlink "./x86_64-linux-musl-gcc" "cc")
-      (os/symlink "./x86_64-linux-musl-gcc" "gcc")
       (os/symlink "./x86_64-linux-musl-c++" "c++")
       (os/symlink "./x86_64-linux-musl-c++" "g++")
-      (os/symlink "./x86_64-linux-musl-ld" "ld"))))
+      (os/symlink "./x86_64-linux-musl-gcc" "cc")
+      (os/symlink "./x86_64-linux-musl-gcc" "gcc")
+      (os/symlink "./x86_64-linux-musl-ld" "ld")
+      (os/symlink "./x86_64-linux-musl-nm" "nm")
+      (os/symlink "./x86_64-linux-musl-objcopy" "objcopy")
+      (os/symlink "./x86_64-linux-musl-objdump" "objdump")
+      (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
+      (os/symlink "./x86_64-linux-musl-strip" "strip"))))
 
 # The runtime package is a gcc installation with only dynamic libraries.
 (defn- prepare-gcc-rt
