@@ -83,14 +83,16 @@ then
     ln -s ./busybox $app
   done
   ln -s ./x86_64-linux-musl-ar ar
-  ln -s ./x86_64-linux-musl-objcopy objcopy
-  ln -s ./x86_64-linux-musl-strip strip
-  ln -s ./x86_64-linux-musl-ranlib ranlib
-  ln -s ./x86_64-linux-musl-gcc cc
-  ln -s ./x86_64-linux-musl-gcc gcc
   ln -s ./x86_64-linux-musl-c++ c++
   ln -s ./x86_64-linux-musl-c++ g++
+  ln -s ./x86_64-linux-musl-gcc cc
+  ln -s ./x86_64-linux-musl-gcc gcc
   ln -s ./x86_64-linux-musl-ld ld
+  ln -s ./x86_64-linux-musl-nm nm
+  ln -s ./x86_64-linux-musl-objcopy objcopy
+  ln -s ./x86_64-linux-musl-objdump objdump
+  ln -s ./x86_64-linux-musl-ranlib ranlib
+  ln -s ./x86_64-linux-musl-strip strip
   cd ../../
   mv seedfs.tmp seedfs
 fi
