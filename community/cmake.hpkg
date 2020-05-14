@@ -18,8 +18,10 @@
     (unpack-src cmake-src)
     (link-/bin/sh)
     (sh/$ ./configure
-          (string "--prefix=" (dyn :pkg-out))
+          --prefix= ^ (dyn :pkg-out)
+          --parallel= ^ (dyn :parallelism)
           --
+          -DCMAKE_BUILD_TYPE:STRING=Release
           -DCMAKE_USE_OPENSSL=OFF)
     (sh/$ make -j (dyn :parallelism))
     (sh/$ make install)))

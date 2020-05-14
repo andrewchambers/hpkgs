@@ -13,7 +13,7 @@ Hermes uses this binary seed to avoid depending on any
 software installed on your system.
 
 This binary seed itself contains a statically linked busybox and musl-gcc
-which is enough to bootstrap all the other software..
+which is enough to bootstrap all the other software.
 
 ## Regenerating your own seed
 
