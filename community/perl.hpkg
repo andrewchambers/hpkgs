@@ -1,0 +1,39 @@
+(use ../prelude)
+(use ../core)
+
+(defsrc perl-src
+  :url
+  "https://www.cpan.org/src/5.0/perl-5.30.2.tar.gz"
+  :hash
+  "sha256:66db7df8a91979eb576fac91743644da878244cf8ee152f02cd6f5cd7a731689")
+
+(defpkg perl
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [awk coreutils dash gcc grep make sed])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src perl-src)
+    # patching path to pwd
+    (os/chmod "dist/PathTools/Cwd.pm" 8r644)
+    (rewrite "dist/PathTools/Cwd.pm"
+             |(string/replace-all "'/bin/pwd'"
+                                  (string "'" (coreutils :path) "/bin/pwd" "'")
+                                  $))
+    (os/chmod "dist/PathTools/Cwd.pm" 8r444)
+    # other assumed bits
+    (unless (os/lstat "/bin/sh")
+      (os/symlink (string (dash :path) "/bin/dash")
+                  "/bin/sh"))
+    # XXX: work-around for there not being a symlink already
+    (unless (os/lstat "/bin/nm")
+      (os/symlink (string (gcc :path) "/bin/x86_64-linux-musl-nm")
+                  "/bin/nm"))
+    (sh/$ ./configure.gnu
+          -Dprefix= ^ (dyn :pkg-out)
+          -Dcc=gcc)
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
