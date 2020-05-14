@@ -1,0 +1,37 @@
+(use ../prelude)
+(import ../core)
+
+# XXX do we want our own private zlib outer repo?
+(defsrc zlib-src
+  :url "https://www.zlib.net/zlib-1.2.11.tar.gz"
+  :hash "sha256:c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1")
+
+(defpkg zlib
+  :builder
+  (fn []
+    (unless (os/lstat "/bin/sh")
+      (os/symlink (pkg-path "/bin/dash" core/dash) "/bin/sh"))
+    (os/setenv "PATH" (pkg-path "/bin" core/build-env))
+    (unpack-src zlib-src)
+    (sh/$ sh ./configure --prefix (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism) install)))
+
+(defsrc squashfs-tools-src
+  :fname
+  "squashfs-tools.tar.gz"
+  :url
+  "https://github.com/plougher/squashfs-tools/archive/4.4.tar.gz"
+  :hash
+  "sha256:a7fa4845e9908523c38d4acf92f8a41fdfcd19def41bd5090d7ad767a6dc75c3")
+
+(defpkg squashfs-tools
+  :builder
+  (fn []
+    (os/setenv "PATH" (pkg-path "/bin" core/build-env))
+    (unpack-src squashfs-tools-src)
+    (os/cd "squashfs-tools")
+    (sh/$ make install
+          -j (dyn :parallelism)
+          INSTALL_DIR= ^ (dyn :pkg-out) ^ "/bin"
+          EXTRA_CFLAGS= ^ (string "-I" (pkg-path "/include" zlib))
+          EXTRA_LDFLAGS= ^ (string "--static -L" (pkg-path "/lib" zlib)))))
