@@ -165,6 +165,12 @@
       LDFLAGS= ^ ,*default-ldflags*
       PREFIX= ^ (dyn :pkg-out))))
 
+(defn link-/bin/sh
+  []
+  # When building without a sandbox, this can't be done.
+  (unless (os/lstat "/bin/sh")
+    (os/symlink (pkg-path "/bin/dash" dash) "/bin/sh")))
+
 (defpkg core-env
   :builder
   (fn []
@@ -234,8 +240,7 @@
     :builder
     (fn []
       # Can we fix the buid scripts and pass them the shell?
-      (unless (os/lstat "/bin/sh")
-        (os/symlink (string (seed :path) "/bin/busybox") "/bin/sh"))
+      (link-/bin/sh)
 
       (defn archive-path
         [src-pkg]
@@ -320,7 +325,7 @@
     :name "gcc"
     :builder
     (fn []
-      (os/setenv "PATH" (string (seed :path) "/bin"))
+      (os/setenv "PATH" (pkg-path "/bin" seed))
       (sh/$ cp -rv ;(sh/glob (string (mcm-gcc :path) "/*")) (dyn :pkg-out))
       (sh/$ chmod -R +w (dyn :pkg-out))
       (def specs (sh/$< (string (dyn :pkg-out) "/bin/gcc") -dumpspecs))

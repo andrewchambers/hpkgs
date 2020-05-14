@@ -9,8 +9,7 @@
 (defpkg zlib
   :builder
   (fn []
-    (unless (os/lstat "/bin/sh")
-      (os/symlink (pkg-path "/bin/dash" core/dash) "/bin/sh"))
+    (core/link-/bin/sh)
     (os/setenv "PATH" (pkg-path "/bin" core/build-env))
     (unpack-src zlib-src)
     (sh/$ sh ./configure --prefix (dyn :pkg-out))

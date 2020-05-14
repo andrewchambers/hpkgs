@@ -12,8 +12,7 @@
 (defpkg janet
   :builder
   (fn []
-    (unless (os/lstat "/bin/sh")
-      (os/symlink (pkg-path "/bin/dash" core/dash) "/bin/sh"))
+    (core/link-/bin/sh)
     (os/setenv "PATH" (pkg-path "/bin" core/build-env))
     (unpack-src janet-src)
     (sh/$ make PREFIX= ^ (dyn :pkg-out) -j (dyn :parallelism))
