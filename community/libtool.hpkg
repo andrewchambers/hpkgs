@@ -1,0 +1,39 @@
+(use ../prelude)
+(use ../core)
+# XXX: precise shell can make difference
+#        https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=512013
+#        https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=518905
+#(use ./bash)
+#(use ./busybox)
+(use ./m4)
+(use ./perl)
+
+(defsrc libtool-src
+  :url
+  "https://ftp.gnu.org/gnu/libtool/libtool-2.4.tar.xz"
+  :hash
+  "sha256:afcce660d3dc54c63a0a5ba3cf05272239dc3c54bbeba20f6bad250f9dc007ae")
+
+(defpkg libtool
+  :builder
+  (fn []
+    # XXX: see shell remark above
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               #[awk bash coreutils diffutils gcc grep m4 make perl sed]))
+                               #[awk busybox coreutils diffutils gcc grep m4 make perl sed]))
+                               [awk coreutils dash diffutils gcc grep m4 make
+                                perl sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src libtool-src)
+    # XXX: see shell remark above
+    (link-/bin/sh)
+    #(unless (os/lstat "/bin/sh")
+    #  (os/symlink (string (bash :path) "/bin/bash")
+    #  (os/symlink (string (busybox :path) "/bin/sh")
+    #              "/bin/sh"))
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
