@@ -3,7 +3,7 @@
 (use ./zlib)
 
 (defsrc squashfs-tools-src
-  :fname
+  :file-name
   "squashfs-tools.tar.gz"
   :url
   "https://github.com/plougher/squashfs-tools/archive/4.4.tar.gz"
