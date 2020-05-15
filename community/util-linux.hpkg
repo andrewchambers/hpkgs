@@ -1,0 +1,22 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc util-linux-src
+  :url "https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.35/util-linux-2.35.1.tar.gz"
+  :hash "sha256:37ac05d82c6410d89bc05d43cee101fefc8fe6cf6090b3ce7a1409a6f35db606")
+
+(defpkg util-linux
+  :builder
+  (fn []
+    (core/link-/bin/sh)
+    (os/setenv "PATH" (pkg-path "/bin" core/build-env))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src util-linux-src)
+    (sh/$ ./configure "--prefix=" ^ (dyn :pkg-out)
+          "--enable-static-programs=losetup,mount,umount,fdisk,sfdisk,blkid,nsenter,unshare"
+          --disable-bash-completion
+          --disable-makeinstall-chown
+          --disable-makeinstall-setuid)
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
