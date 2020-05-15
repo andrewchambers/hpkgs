@@ -2,7 +2,7 @@
 (import ../core)
 
 (defsrc janet-src
-  :fname
+  :file-name
   "janet.tar.gz"
   :url
   "https://github.com/janet-lang/janet/archive/v1.9.1.tar.gz"
