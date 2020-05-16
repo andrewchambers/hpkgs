@@ -1,5 +1,5 @@
 (use ../prelude)
-(use ../core)
+(import ../core)
 
 (defsrc perl-src
   :url
@@ -13,7 +13,9 @@
     (os/setenv "PATH"
                (string "/bin:"
                        (join-pkg-paths ":" "/bin"
-                                       [awk coreutils dash gcc grep make sed])))
+                                       [core/awk core/coreutils core/dash
+                                        core/gcc core/grep core/make
+                                        core/sed])))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
     (unpack-src perl-src)
@@ -21,11 +23,13 @@
     (os/chmod "dist/PathTools/Cwd.pm" 8r644)
     (rewrite "dist/PathTools/Cwd.pm"
              |(string/replace-all "'/bin/pwd'"
-                                  (string "'" (coreutils :path) "/bin/pwd" "'")
+                                  (string "'"
+                                          (core/coreutils :path) "/bin/pwd"
+                                          "'")
                                   $))
     (os/chmod "dist/PathTools/Cwd.pm" 8r444)
     # other assumed bits
-    (link-/bin/sh)
+    (core/link-/bin/sh)
     (sh/$ ./configure.gnu
           -Dprefix= ^ (dyn :pkg-out)
           -Dcc=gcc)
