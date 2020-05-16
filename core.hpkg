@@ -113,7 +113,7 @@
     (sh/$ ./make install)))
 
 (defn- core-builder
-  [src extra-cfg]
+  [src &opt extra-cfg]
   (default extra-cfg [])
   (os/setenv "PATH" (join-pkg-paths ":" "/bin" [seed make]))
   (unpack-src src)
@@ -134,20 +134,79 @@
      :builder
      |(core-builder ,(symbol name "-src") ,extra-cfg)))
 
-(defcore dash)
-(defcore coreutils)
-(defcore awk)
-(defcore diffutils)
-(defcore findutils)
-(defcore patch)
-(defcore pkgconf :extra-cfg ["--enable-shared=no"])
-(defcore sed)
-(defcore grep)
-(defcore gzip)
-(defcore which)
-(defcore tar)
-(defcore lzip)
-(defcore xz :extra-cfg ["--enable-shared=no"])
+(defpkg dash
+  :builder
+  |(do
+     (core-builder dash-src)
+     (os/cd (string (dyn :pkg-out) "/bin"))
+     (os/symlink "./dash" "sh")))
+
+(defpkg coreutils
+  :builder
+  |(do
+     (core-builder dash-src)))
+
+(defpkg awk
+  :builder
+  |(do
+     (core-builder awk-src)))
+
+(defpkg diffutils
+  :builder
+  |(do
+     (core-builder diffutils-src)))
+
+(defpkg findutils
+  :builder
+  |(do
+     (core-builder findutils-src)))
+
+(defpkg patch
+  :builder
+  |(do
+     (core-builder patch-src)))
+
+(defpkg pkgconf
+  :builder
+  |(do
+     (core-builder pkgconf-src ["--enable-shared=no"])
+     (os/cd (string (dyn :pkg-out) "/bin"))
+     (os/symlink "./pkgconf" "pkg-config")))
+
+(defpkg sed
+  :builder
+  |(do
+     (core-builder sed-src)))
+
+(defpkg grep
+  :builder
+  |(do
+     (core-builder grep-src)))
+
+(defpkg gzip
+  :builder
+  |(do
+     (core-builder gzip-src)))
+
+(defpkg which
+  :builder
+  |(do
+     (core-builder which-src)))
+
+(defpkg tar
+  :builder
+  |(do
+     (core-builder tar-src)))
+
+(defpkg lzip
+  :builder
+  |(do
+     (core-builder lzip-src)))
+
+(defpkg xz
+  :builder
+  |(do
+     (core-builder xz-src ["--enable-shared=no"])))
 
 # bzip2 doesn't really fit any pattern
 (defpkg bzip2
@@ -191,9 +250,7 @@
        xz])
     (def bin-out (string (dyn :pkg-out) "/bin"))
     (os/mkdir bin-out)
-    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)
-    (os/cd bin-out)
-    (os/symlink "./dash" "sh")))
+    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)))
 
 (defsrc musl-cross-make-src
   :url "https://github.com/richfelker/musl-cross-make/archive/v0.9.9.tar.gz"
@@ -352,6 +409,4 @@
                gcc])
     (def bin-out (string (dyn :pkg-out) "/bin"))
     (os/mkdir bin-out)
-    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)
-    (os/cd bin-out)
-    (os/symlink "./pkgconf" "pkg-config")))
+    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)))
