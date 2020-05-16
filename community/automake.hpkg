@@ -1,5 +1,5 @@
 (use ../prelude)
-(use ../core)
+(import ../core)
 (use ./autoconf)
 (use ./m4)
 (use ./perl)
@@ -15,11 +15,13 @@
   (fn []
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [autoconf awk coreutils dash findutils gcc grep m4 make perl sed]))
+                               [autoconf core/awk core/coreutils core/dash 
+                                core/findutils core/gcc core/grep m4
+                                core/make perl core/sed]))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
     (unpack-src automake-src)
-    (link-/bin/sh)
+    (core/link-/bin/sh)
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out))
     (sh/$ make -j (dyn :parallelism))
