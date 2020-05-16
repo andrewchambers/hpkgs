@@ -291,6 +291,7 @@
       (os/symlink "./x86_64-linux-musl-objcopy" "objcopy")
       (os/symlink "./x86_64-linux-musl-objdump" "objdump")
       (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
+      (os/symlink "./x86_64-linux-musl-strings" "strings")
       (os/symlink "./x86_64-linux-musl-strip" "strip"))))
 
 # The runtime package is a gcc installation with only dynamic libraries.
