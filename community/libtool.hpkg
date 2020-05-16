@@ -1,5 +1,5 @@
 (use ../prelude)
-(use ../core)
+(import ../core)
 # XXX: precise shell can make difference
 #        https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=512013
 #        https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=518905
@@ -22,13 +22,14 @@
                (join-pkg-paths ":" "/bin"
                                #[awk bash coreutils diffutils gcc grep m4 make perl sed]))
                                #[awk busybox coreutils diffutils gcc grep m4 make perl sed]))
-                               [awk coreutils dash diffutils gcc grep m4 make
-                                perl sed]))
+                               [core/awk core/coreutils core/dash
+                                core/diffutils core/gcc core/grep
+                                m4 core/make perl core/sed]))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
     (unpack-src libtool-src)
     # XXX: see shell remark above
-    (link-/bin/sh)
+    (core/link-/bin/sh)
     #(unless (os/lstat "/bin/sh")
     #  (os/symlink (string (bash :path) "/bin/bash")
     #  (os/symlink (string (busybox :path) "/bin/sh")
