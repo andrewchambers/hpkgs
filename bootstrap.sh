@@ -92,6 +92,7 @@ then
   ln -s ./x86_64-linux-musl-objcopy objcopy
   ln -s ./x86_64-linux-musl-objdump objdump
   ln -s ./x86_64-linux-musl-ranlib ranlib
+  ln -s ./x86_64-linux-musl-strings strings
   ln -s ./x86_64-linux-musl-strip strip
   cd ../../
   mv seedfs.tmp seedfs

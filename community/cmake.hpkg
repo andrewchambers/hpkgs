@@ -1,5 +1,5 @@
 (use ../prelude)
-(use ../core)
+(import ../core)
 
 (defsrc cmake-src
   :url
@@ -12,11 +12,12 @@
   (fn []
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [coreutils gcc grep make sed]))
+                               [core/coreutils core/gcc core/grep core/make
+                                core/sed]))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
     (unpack-src cmake-src)
-    (link-/bin/sh)
+    (core/link-/bin/sh)
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out)
           --parallel= ^ (dyn :parallelism)
