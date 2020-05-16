@@ -128,12 +128,6 @@
         -j (dyn :parallelism))
   (sh/$ make install))
 
-(defmacro- defcore
-  [name &keys {:extra-cfg extra-cfg}]
-  ~(defpkg ,name
-     :builder
-     |(core-builder ,(symbol name "-src") ,extra-cfg)))
-
 (defpkg dash
   :builder
   |(do
@@ -143,28 +137,23 @@
 
 (defpkg coreutils
   :builder
-  |(do
-     (core-builder dash-src)))
+  |(core-builder coreutils-src))
 
 (defpkg awk
   :builder
-  |(do
-     (core-builder awk-src)))
+  |(core-builder awk-src))
 
 (defpkg diffutils
   :builder
-  |(do
-     (core-builder diffutils-src)))
+  |(core-builder diffutils-src))
 
 (defpkg findutils
   :builder
-  |(do
-     (core-builder findutils-src)))
+  |(core-builder findutils-src))
 
 (defpkg patch
   :builder
-  |(do
-     (core-builder patch-src)))
+  |(core-builder patch-src))
 
 (defpkg pkgconf
   :builder
@@ -175,38 +164,31 @@
 
 (defpkg sed
   :builder
-  |(do
-     (core-builder sed-src)))
+  |(core-builder sed-src))
 
 (defpkg grep
   :builder
-  |(do
-     (core-builder grep-src)))
+  |(core-builder grep-src))
 
 (defpkg gzip
   :builder
-  |(do
-     (core-builder gzip-src)))
+  |(core-builder gzip-src))
 
 (defpkg which
   :builder
-  |(do
-     (core-builder which-src)))
+  |(core-builder which-src))
 
 (defpkg tar
   :builder
-  |(do
-     (core-builder tar-src)))
+  |(core-builder tar-src))
 
 (defpkg lzip
   :builder
-  |(do
-     (core-builder lzip-src)))
+  |(core-builder lzip-src))
 
 (defpkg xz
   :builder
-  |(do
-     (core-builder xz-src ["--enable-shared=no"])))
+  |(core-builder xz-src ["--enable-shared=no"]))
 
 # bzip2 doesn't really fit any pattern
 (defpkg bzip2
