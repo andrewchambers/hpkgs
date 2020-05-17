@@ -1,0 +1,33 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./automake)
+(use ./m4)
+
+(defsrc patchelf-src
+  :file-name
+  "patchelf-0.10.tar.gz"
+  :url
+  "https://github.com/NixOS/patchelf/archive/0.10.tar.gz"
+  :hash
+  "sha256:b3cb6bdedcef5607ce34a350cf0b182eb979f8f7bc31eae55a93a70a3f020d13")
+
+(defpkg patchelf
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk autoconf automake core/coreutils
+                                core/gcc core/grep core/make m4 core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src patchelf-src)
+    (core/link-/bin/sh)
+    (sh/$ ./bootstrap.sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
