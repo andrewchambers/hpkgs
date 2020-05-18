@@ -321,6 +321,7 @@
 
       (os/cd (string (dyn :pkg-out) "/bin"))
       (os/symlink "./x86_64-linux-musl-ar" "ar")
+      (os/symlink "./x86_64-linux-musl-as" "as")
       (os/symlink "./x86_64-linux-musl-c++" "c++")
       (os/symlink "./x86_64-linux-musl-c++" "g++")
       (os/symlink "./x86_64-linux-musl-gcc" "cc")
