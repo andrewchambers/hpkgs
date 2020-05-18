@@ -83,6 +83,7 @@ then
     ln -s ./busybox $app
   done
   ln -s ./x86_64-linux-musl-ar ar
+  ln -s ./x86_64-linux-musl-as as
   ln -s ./x86_64-linux-musl-c++ c++
   ln -s ./x86_64-linux-musl-c++ g++
   ln -s ./x86_64-linux-musl-gcc cc
