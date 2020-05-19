@@ -1,0 +1,41 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./automake)
+(use ./libtool)
+(use ./m4)
+
+(defsrc re2c-src
+  :file-name
+  "re2c-1.3.tar.gz"
+  :url
+  "https://github.com/skvadrik/re2c/archive/1.3.tar.gz"
+  :hash
+  "sha256:81d63a1b10af4b4cc676afaa0367caf12c23ad8750c10da149d5ac3cf5229023")
+
+(defpkg re2c
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [autoconf automake core/awk core/coreutils
+                                core/diffutils core/gcc core/grep libtool
+                                core/make m4 core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src re2c-src)
+    (core/link-/bin/sh)
+    # XXX: contrary to docs, there was no configure, thus:
+    #        https://askubuntu.com/a/27679
+    (sh/$ libtoolize --force)
+    (sh/$ aclocal)
+    (sh/$ autoheader)
+    (sh/$ automake --force-missing --add-missing)
+    (sh/$ autoconf)
+    # XXX: this didn't work, which is why tried above sequence
+    #(sh/$ ./autogen.sh)
+    (sh/$ ./configure
+          --disable-dependency-tracking
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
