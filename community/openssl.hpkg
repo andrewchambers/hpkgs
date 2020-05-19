@@ -1,0 +1,36 @@
+(use ../prelude)
+(import ../core)
+(use ./perl)
+
+(defsrc openssl-src
+  :url
+  "https://www.openssl.org/source/openssl-1.1.1g.tar.gz"
+  :hash
+  "sha256:ddb04774f1e32f0c49751e21b67216ac87852ceb056b75209af2443400636d46")
+
+(defpkg openssl
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc core/grep
+                                core/make core/sed perl]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-Wl,--enable-new-dtags"))
+    (unpack-src openssl-src)
+    (rewrite "config"
+             |(string/replace-all "/usr/bin/env"
+                                  (string (core/coreutils :path) "/bin/env")
+                                  $))
+    (core/link-/bin/sh)
+    # https://wiki.openssl.org/index.php/Compilation_and_Installation
+    (sh/$ ./config
+          (string "-Wl,-rpath=" (dyn :pkg-out) "/lib") # because of comma
+          --prefix= ^ (dyn :pkg-out)
+          --openssldir= ^ (dyn :pkg-out)
+          shared)
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
