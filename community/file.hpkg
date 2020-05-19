@@ -1,0 +1,24 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc file-src
+  :url
+  "ftp://ftp.astron.com/pub/file/file-5.38.tar.gz"
+  :hash
+  "sha256:593c2ffc2ab349c5aea0f55fedfe4d681737b6b62376a9b3ad1e77b2cc19fa34")
+
+(defpkg file
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/diffutils
+                                core/gcc core/grep core/make core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src file-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
