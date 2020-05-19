@@ -1,0 +1,34 @@
+(use ../prelude)
+(import ../core)
+(use ./cmake)
+(use ./re2c)
+
+(defsrc ninja-src
+  :file-name
+  "ninja-1.10.0.tar.gz"
+  :url
+  "https://github.com/ninja-build/ninja/archive/v1.10.0.tar.gz"
+  :hash
+  "sha256:3810318b08489435f8efc19c05525e80a993af5a55baa0dfeae0465a9d45f99f")
+
+(defpkg ninja
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [cmake core/coreutils core/gcc
+                                        core/make re2c])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src ninja-src)
+    (core/link-/bin/sh)
+    (sh/$ cmake
+          -Bbuild-cmake -H.)
+    (sh/$ cmake
+          --build build-cmake)
+    (os/mkdir (string (dyn :pkg-out) "/bin"))
+    # XXX: may be better to specify permissions and such explicitly?
+    (sh/$ cp -a
+          build-cmake/ninja
+          (dyn :pkg-out) ^ "/bin/ninja")))
