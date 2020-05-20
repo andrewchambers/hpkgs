@@ -1,0 +1,29 @@
+(use ../prelude)
+(import ../core)
+(use ./python3)
+
+(defsrc meson-src
+  :file-name
+  "meson-0.54.2.tar.gz"
+  :url
+  "https://github.com/mesonbuild/meson/archive/0.54.2.tar.gz"
+  :hash
+  "sha256:85cafdc70ae7d1d9d506e7356b917c649c4df2077bd6a0382db37648aa4ecbdb")
+
+(defpkg meson
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils python3]))
+    (unpack-src meson-src)
+    (os/setenv "PYTHONPATH"
+               (dyn :pkg-out))
+    (sh/$ python3 -m venv
+          (dyn :pkg-out) ^ "/venv")
+    (sh/$ (dyn :pkg-out) ^ "/venv/bin/python3"
+          setup.py
+          install)
+    (os/mkdir (string (dyn :pkg-out) "/bin"))
+    (os/symlink (string (dyn :pkg-out) "/venv/bin/meson")
+                (string (dyn :pkg-out) "/bin/meson"))))
