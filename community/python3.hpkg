@@ -6,9 +6,9 @@
 
 (defsrc python3-src
   :url
-  "https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tgz"
+  "https://www.python.org/ftp/python/3.8.3/Python-3.8.3.tgz"
   :hash
-  "sha256:e634a7a74776c2b89516b2e013dda1728c89c8149b9863b8cea21946daf9d561")
+  "sha256:6af6d4d2e010f9655518d0fc6738c7ff7069f10a4d2fbd55509e467f092a8b90")
 
 # https://bugs.python.org/issue14527#msg368413
 # https://bugs.python.org/issue31710#msg348109
