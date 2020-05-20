@@ -1,0 +1,62 @@
+(use ../prelude)
+(import ../core)
+(use ./libffi)
+(use ./openssl)
+(use ./zlib)
+
+(defsrc python3-src
+  :url
+  "https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tgz"
+  :hash
+  "sha256:e634a7a74776c2b89516b2e013dda1728c89c8149b9863b8cea21946daf9d561")
+
+# https://bugs.python.org/issue14527#msg368413
+# https://bugs.python.org/issue31710#msg348109
+# https://bugs.python.org/issue31710#msg303801
+(defpkg python3
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc core/grep
+                                core/make core/pkgconf core/sed]))
+    (os/setenv "PKG_CONFIG_PATH"
+               (join-pkg-paths ":" "/lib/pkgconfig"
+                               [libffi openssl zlib]))
+    (os/setenv "CFLAGS"
+               (string
+                 *default-cflags*
+                 " "
+                 "-fPIC" # XXX: talloc wanted this, but may be good in general?
+                 " "
+                 # XXX: see hermes 1 and https://bugs.python.org/issue32307
+                 "-DTHREAD_STACK_SIZE=0x100000"
+                 " "
+                 (sh/$<_ pkg-config --cflags
+                         libffi libcrypto libssl zlib)))
+    # XXX: setup.py doesn't use CFLAGS, but instead CPPFLAGS
+    (os/setenv "CPPFLAGS"
+               (os/getenv "CFLAGS"))
+    (os/setenv "LDFLAGS"
+               (string
+                 *default-ldflags*
+                 " "
+                 (sh/$<_ pkg-config --libs
+                         libffi libcrypto libssl zlib)
+                 " "
+                 "-Wl,-rpath," (join-pkg-paths ":" "/lib"
+                                               [libffi openssl zlib])))
+    (os/setenv "LD_LIBRARY_PATH"
+               (join-pkg-paths ":" "/lib"
+                               [libffi openssl zlib]))
+    (unpack-src python3-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --with-openssl= ^ (openssl :path)
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
