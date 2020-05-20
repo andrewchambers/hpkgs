@@ -1,0 +1,40 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./automake)
+(use ./libtool)
+(use ./m4)
+(use ./perl)
+(use ./texinfo)
+
+(defsrc libffi-src
+  :file-name
+  "libffi-3.3.tar.gz"
+  :url
+  "https://github.com/libffi/libffi/archive/v3.3.tar.gz"
+  :hash
+  "sha256:3f2f86094f5cf4c36cfe850d2fe029d01f5c2c2296619407c8ba0d8207da9a6b")
+
+(defpkg libffi
+  :builder
+  (fn []
+    (os/setenv "ACLOCAL_PATH"
+      (string (libtool :path) "/share/aclocal"))
+    (os/setenv "PATH"
+               (string "/bin:" # for finding sh
+                       (join-pkg-paths ":" "/bin"
+                                       [autoconf automake core/awk
+                                        core/coreutils core/diffutils
+                                        core/gcc core/grep libtool
+                                        core/make m4 perl core/sed
+                                        core/tar texinfo])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src libffi-src)
+    (core/link-/bin/sh)
+    (sh/$ ./autogen.sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j
+          (dyn :parallelism))
+    (sh/$ make install)))
