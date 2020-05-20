@@ -1,0 +1,43 @@
+(use ../prelude)
+(import ../core)
+(use ./ncurses)
+(use ./perl)
+
+(defsrc texinfo-src
+  :url
+  "https://ftp.gnu.org/gnu/texinfo/texinfo-6.7.tar.xz"
+  :hash
+  "sha256:988403c1542d15ad044600b909997ba3079b10e03224c61188117f3676b02caa")
+
+(defpkg texinfo
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/diffutils
+                                core/gcc core/grep core/make core/pkgconf
+                                perl core/sed]))
+    (os/setenv "PKG_CONFIG_PATH"
+               (string (ncurses :path) "/lib/pkgconfig"))
+    (os/setenv "CFLAGS"
+               (string
+                 *default-cflags*
+                 " "
+                 "-fPIC" # XXX: add to defaults?
+                 " "
+                 (sh/$<_ pkg-config --cflags ncurses)))
+    (os/setenv "LDFLAGS"
+               (string
+                 *default-ldflags*
+                 " "
+                 (sh/$<_ pkg-config --libs ncurses)))
+    # placate configure
+    (os/setenv "LD_LIBRARY_PATH"
+      (string (ncurses :path) "/lib"))
+    (unpack-src texinfo-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))
