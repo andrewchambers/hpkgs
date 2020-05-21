@@ -1,0 +1,20 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc uthash-src
+  :file-name
+  "uthash-2.1.0.tar.gz"
+  :url
+  "https://github.com/troydhanson/uthash/archive/v2.1.0.tar.gz"
+  :hash
+  "sha256:152ccd8e64d0f495377232e3964d06c7ec8bb8c3fbd3217f8a5702614f9a669e")
+
+(defpkg uthash
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string (core/coreutils :path) "/bin"))
+    (unpack-src uthash-src)
+    (sh/$ cp -a
+          src
+          (dyn :pkg-out) ^ "/include")))
