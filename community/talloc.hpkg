@@ -1,0 +1,33 @@
+(use ../prelude)
+(import ../core)
+(use ./python3)
+
+(defsrc talloc-src
+  :url
+  "https://www.samba.org/ftp/talloc/talloc-2.3.1.tar.gz"
+  :hash
+  "sha256:ef4822d2fdafd2be8e0cabc3ec3c806ae29b8268e932c5e9a4cd5585f37f9f77")
+
+(defpkg talloc
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/make python3
+                                core/sed core/which]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src talloc-src)
+    (core/link-/bin/sh)
+    # XXX: waf is a python script starting with /usr/bin/env
+    (unless (os/lstat "/usr/bin/env")
+      (os/symlink (string (core/coreutils :path) "/bin/env")
+                  "/usr/bin/env"))
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
