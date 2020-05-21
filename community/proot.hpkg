@@ -1,0 +1,57 @@
+(use ../prelude)
+(import ../core)
+(use ./talloc)
+(use ./uthash)
+
+(defsrc proot-src
+  :file-name
+  "proot-a6db8746f21a2e68a8d0290a0aa9b3ad36d78f56.tar.gz"
+  :url
+  "https://github.com/proot-me/PRoot/archive/a6db8746f21a2e68a8d0290a0aa9b3ad36d78f56.tar.gz"
+  :hash
+  "sha256:410d63520cb1aaad8370362f3f8a5f77fd5a7a13093fda4a9d4b45ff2ac36b28")
+
+(defsrc sys-queue.h-src
+  :file-name "queue.h"
+  :url
+  "https://git.alpinelinux.org/aports/plain/main/libc-dev/sys-queue.h?h=3.11-stable"
+  :hash
+  "sha256:c13407edd0e33be73cae72514cb234f8612e1c0e54401c9448daffd3a240158b")
+
+(defpkg proot
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/awk core/coreutils core/grep
+                                        core/gcc core/make])))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       "-I" "/build/include"
+                       " "
+                       "-I" (talloc :path) "/include"
+                       " "
+                       "-I" (uthash :path) "/include"))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-Wl,--enable-new-dtags"
+                       " "
+                       "-L" (talloc :path) "/lib"
+                       " "
+                       "-Wl,-rpath," (talloc :path) "/lib"))
+    (unpack-src proot-src)
+    # XXX: doing this before unpack seems to be problematic?
+    (os/mkdir "/build/include")
+    (os/mkdir "/build/include/sys")
+    (sh/$ cp (sys-queue.h-src :path) ^ "/queue.h"
+             "/build/include/sys")
+    (core/link-/bin/sh)
+    (os/cd "src")
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
