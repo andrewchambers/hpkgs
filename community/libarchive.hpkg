@@ -1,0 +1,51 @@
+(use ../prelude)
+(import ../core)
+(use ./bzip2)
+(use ./lz4)
+(use ./xz)
+(use ./zlib)
+
+(defsrc libarchive-src
+  :url
+  "https://github.com/libarchive/libarchive/releases/download/v3.4.2/libarchive-3.4.2.tar.gz"
+  :hash
+  "sha256:b60d58d12632ecf1e8fad7316dc82c6b9738a35625746b47ecdcaf4aed176176")
+
+(defpkg libarchive
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (join-pkg-paths ":" "/lib/pkgconfig"
+                               [lz4 xz zlib]))
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc core/grep
+                                core/make core/pkgconf core/sed]))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       "-I" (bzip2 :path) "/include"
+                       " "
+                       (sh/$<_ pkg-config --cflags liblz4 liblzma zlib)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L" (bzip2 :path) "/lib"
+                       " "
+                       "-Wl,-rpath=" (join-pkg-paths ":" "/lib"
+                                                     [lz4 xz zlib])
+                       " "
+                       (sh/$<_ pkg-config --libs zlib liblz4 liblzma)
+                       " "
+                       "-lbz2"))
+    (unpack-src libarchive-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)
+    (rewrite (string (dyn :pkg-out) "/lib/pkgconfig/libarchive.pc")
+             |(string/replace "Libs: "
+                              (string "Libs: -Wl,rpath=" (dyn :pkg-out) "/lib ")
+                              $))))
