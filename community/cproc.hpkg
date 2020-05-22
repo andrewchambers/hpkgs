@@ -1,0 +1,59 @@
+(use ../prelude)
+(import ../core)
+(use ./yasm)
+
+(defsrc qbe-src
+  :file-name
+  "qbe.tar.gz"
+  :url
+  "https://github.com/michaelforney/qbe/tarball/86b1c9af1324dae113910669caa6bff069e8631e"
+  :hash
+  "sha256:9547531e4512d38b6f0ebf75ae5ccb09f82089e4e7f121006429b462b80b0ddf")
+
+(defsrc cproc-src
+  :file-name
+  "cproc.tar.gz"
+  :url
+  "https://github.com/michaelforney/cproc/tarball/5cee758069a44bc8f656eeae054c19393b7381ee"
+  :hash
+  "sha256:caa15ec7cc98abcb24014ff84fda7c864fdfe33c76b263be0b25529a0ab860ff")
+
+(defpkg qbe
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/make]))
+    (unpack-src qbe-src)
+    (core/link-/bin/sh)
+    (sh/$ make install
+          CC=gcc
+          CFLAGS= ^ ,*default-cflags* ^ " -std=c99 --static"
+          LDFLAGS= ^ ,*default-ldflags* ^ " --static"
+          PREFIX= ^ (dyn :pkg-out)
+          -j (dyn :parallelism))))
+
+(defpkg cproc
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/make]))
+    (unpack-src cproc-src)
+
+    (core/link-/bin/sh)
+    (def as (string (dyn :pkg-out) "/bin/as"))
+
+    (sh/$ ./configure
+          CC=gcc
+          CFLAGS= ^ ,*default-cflags* ^ " -std=c99 --static"
+          LDFLAGS= ^ ,*default-ldflags* ^ " --static"
+          --target=x86_64-linux-musl
+          --prefix= ^ (dyn :pkg-out)
+          --with-as= ^ (core/gcc :path) ^ /bin/x86_64-linux-musl-as
+          --with-ld= ^ (core/gcc :path) ^ /bin/x86_64-linux-musl-ld
+          --with-cpp= ^ (core/gcc :path) ^ /bin/x86_64-linux-musl-cpp
+          --with-ldso= ^ (core/gcc-rt :path) ^ /x86_64-linux-musl/lib/ld-musl-x86_64.so.1
+          --with-qbe= ^ (qbe :path) ^ /bin/qbe)
+    
+    (sh/$ make install -j (dyn :parallelism))))
