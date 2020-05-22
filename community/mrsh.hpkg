@@ -1,0 +1,26 @@
+# XXX We probably want libeditline
+(use ../prelude)
+(import ../core)
+
+(defsrc mrsh-src
+  :file-name
+  "mrsh.tar.gz"
+  :url
+  "https://github.com/emersion/mrsh/tarball/819e0495ca9e0db1a5459892aefdb2608b397d0a"
+  :hash
+  "sha256:8c9374ed5d37ef298c2d2ed4176775f0bd5573f103487465f401d8b31e662279")
+
+(defpkg mrsh
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/grep core/pkgconf core/make]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (core/link-/bin/sh)
+
+    (unpack-src mrsh-src)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make install
+      -j (dyn :parallelism))))
