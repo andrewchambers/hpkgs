@@ -1,0 +1,27 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc xz-src
+  :url
+  "https://tukaani.org/xz/xz-5.2.5.tar.gz"
+  :hash
+  "sha256:f6f4910fd033078738bd82bfba4f49219d03b17eb0794eb91efbae419f4aba10")
+
+(defpkg xz
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc core/grep
+                                core/make core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src xz-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make
+          install)))
+# XXX: pkg-config massaging?
