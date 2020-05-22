@@ -1,0 +1,22 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc yasm-src
+  :url
+  "http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz"
+  :hash
+  "sha256:3dce6601b495f5b3d45b59f7d2492a340ee7e84b5beca17e48f862502bd5603f")
+
+(defpkg yasm
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/sed core/grep core/awk core/make]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src yasm-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
