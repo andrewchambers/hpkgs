@@ -1,0 +1,40 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc bzip2-src
+  :url
+  "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz"
+  :hash
+  "sha256:ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269")
+
+(defpkg bzip2
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/diffutils core/gcc
+                                core/make]))
+    # XXX: these seem ignored by Makefile-libbz2_so, but used by Makefile
+    (os/setenv "CFLAGS"
+               *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src bzip2-src)
+    (core/link-/bin/sh)
+    # doing this make first seems easier
+    (sh/$? make
+         -f Makefile-libbz2_so)
+    (sh/$ make
+         -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)
+    # shared results don't have install target...
+    # XXX: if you want this, likely need to use patchelf on it
+    #(sh/$ cp bzip2-shared
+    #      (string (dyn :pkg-out) "/bin"))
+    (os/mkdir (string (dyn :pkg-out) "/lib"))
+    # a symlink
+    (sh/$ cp -P libbz2.so.1.0
+          (string (dyn :pkg-out) "/lib"))
+    (sh/$ cp libbz2.so.1.0.8
+          (string (dyn :pkg-out) "/lib"))))
