@@ -1,0 +1,26 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc lz4-src
+  :file-name
+  "lz4-1.9.2.tar.gz"
+  :url
+  "https://github.com/lz4/lz4/archive/v1.9.2.tar.gz"
+  :hash
+  "sha256:658ba6191fa44c92280d4aa2c271b0f4fbc0e34d249578dd05e50e76d0e5efcc")
+
+(defpkg lz4
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/make core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src lz4-src)
+    (core/link-/bin/sh)
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
