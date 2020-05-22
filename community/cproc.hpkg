@@ -1,6 +1,5 @@
 (use ../prelude)
 (import ../core)
-(use ./yasm)
 
 (defsrc qbe-src
   :file-name
@@ -55,5 +54,5 @@
           --with-cpp= ^ (core/gcc :path) ^ /bin/x86_64-linux-musl-cpp
           --with-ldso= ^ (core/gcc-rt :path) ^ /x86_64-linux-musl/lib/ld-musl-x86_64.so.1
           --with-qbe= ^ (qbe :path) ^ /bin/qbe)
-    
+
     (sh/$ make install -j (dyn :parallelism))))
