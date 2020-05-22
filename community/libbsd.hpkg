@@ -1,0 +1,24 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc libbsd-src
+  :url
+  "https://libbsd.freedesktop.org/releases/libbsd-0.10.0.tar.xz"
+  :hash
+  "sha256:34b8adc726883d0e85b3118fa13605e179a62b31ba51f676136ecb2d0bc1a887")
+
+(defpkg libbsd
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/diffutils core/gcc
+                                core/grep core/make core/sed]))
+    (unpack-src libbsd-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make
+          install)))
