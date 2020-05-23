@@ -1,6 +1,8 @@
-# XXX We probably want libeditline
 (use ../prelude)
 (import ../core)
+(use ./libedit)
+(use ./ncurses)
+(use ./patchelf)
 
 (defsrc mrsh-src
   :file-name
@@ -13,14 +15,25 @@
 (defpkg mrsh
   :builder
   (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (join-pkg-paths ":" "/lib/pkgconfig"
+                               [libedit ncurses]))
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [core/coreutils core/gcc core/grep core/pkgconf core/make]))
+                               [core/coreutils core/gcc core/grep
+                                core/make patchelf core/pkgconf]))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
     (core/link-/bin/sh)
-
     (unpack-src mrsh-src)
-    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
-    (sh/$ make install
-      -j (dyn :parallelism))))
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+           -j (dyn :parallelism))
+    (sh/$ make
+          install)
+    (sh/$ patchelf
+          --set-rpath (string (dyn :pkg-out) "/lib"
+                              ":"
+                              (join-pkg-paths ":" "/lib" [ncurses libedit]))
+          (dyn :pkg-out) ^ "/bin/mrsh")))
