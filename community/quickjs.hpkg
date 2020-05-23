@@ -1,0 +1,22 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc quickjs-src
+  :url
+  "https://bellard.org/quickjs/quickjs-2020-04-12.tar.xz"
+  :hash
+  "sha256:22b15f2cc910289821379dc8d314d35ef492f6d69d4419c9bcb1b2263e9d71c8")
+
+(defpkg quickjs
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/make]))
+    (core/link-/bin/sh)
+    (unpack-src quickjs-src)
+    (rewrite "Makefile"
+             |(->> $
+                   (string/replace "prefix=/usr/local" (string "prefix=" (dyn :pkg-out)))
+                   (string/replace "AR=$(CROSS_PREFIX)gcc-ar" "AR=ar")))
+    (sh/$ make install -j (dyn :parallelism))))
