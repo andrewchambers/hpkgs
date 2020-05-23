@@ -44,7 +44,7 @@
                  (sh/$<_ pkg-config --libs
                          libffi libcrypto libssl zlib)
                  " "
-                 "-Wl,-rpath," (join-pkg-paths ":" "/lib"
+                 "-Wl,-rpath=" (join-pkg-paths ":" "/lib"
                                                [libffi openssl zlib])))
     (os/setenv "LD_LIBRARY_PATH"
                (join-pkg-paths ":" "/lib"
