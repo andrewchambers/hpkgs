@@ -1,0 +1,47 @@
+(use ../prelude)
+(import ../core)
+(use ./ncurses)
+
+(defsrc libedit-src
+  :url
+  "http://thrysoee.dk/editline/libedit-20191231-3.1.tar.gz"
+  :hash
+  "sha256:dbb82cb7e116a5f8025d35ef5b4f7d4a3cdd0a3909a146a39112095a2d229071")
+
+(defpkg libedit
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/awk core/coreutils core/gcc
+                                        core/grep core/make core/pkgconf
+                                        core/sed])))
+    (os/setenv "PKG_CONFIG_PATH"
+               (string (ncurses :path) "/lib/pkgconfig"))
+    (os/setenv "CFLAGS"
+               (string
+                 *default-cflags*
+                 " "
+                 (sh/$<_ pkg-config --cflags ncurses)))
+    (os/setenv "LDFLAGS"
+               (string
+                 *default-ldflags*
+                 " "
+                 (sh/$<_ pkg-config --libs ncurses)))
+    (unpack-src libedit-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)
+    (rewrite (string (dyn :pkg-out) "/lib/pkgconfig/libedit.pc")
+             |(string/replace "Libs: "
+                              (string "Libs: -Wl,-rpath=" (ncurses :path) "/lib"
+                                      " "
+                                      "-L" (ncurses :path) "/lib"
+                                      " "
+                                      "-lncurses"
+                                      " ")
+                              $))))
