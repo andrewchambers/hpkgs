@@ -1,0 +1,32 @@
+(use ../prelude)
+(import ../core)
+(use ./busybox)
+
+(defsrc luajit-src
+  :file-name
+  "luajit.tar.gz"
+  :url
+  "https://github.com/LuaJIT/LuaJIT/archive/v2.0.5.tar.gz"
+  :hash
+  "sha256:8bb29d84f06eb23c7ea4aa4794dbb248ede9fcb23b6989cbef81dc79352afc97")
+
+(defpkg luajit
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (join-pkg-paths ":" "/bin"
+                                [core/coreutils
+                                 core/gcc
+                                 busybox
+                                 core/make]))
+     (os/setenv "CFLAGS"
+                *default-cflags*)
+     (os/setenv "LDFLAGS" *default-ldflags*)
+     (unpack-src luajit-src)
+     (core/link-/bin/sh)
+     (sh/$ make
+           -j (dyn :parallelism))
+     (sh/$ make
+           PREFIX= ^ (dyn :pkg-out)
+           install)
+     ))
