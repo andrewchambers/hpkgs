@@ -1,0 +1,24 @@
+(use ../prelude)
+(import ../core)
+(use ./m4)
+
+(defsrc bison-src
+  :url
+  "https://ftp.gnu.org/gnu/bison/bison-3.6.tar.xz"
+  :hash
+  "sha256:e16f26baa2ebff141333e452c3cc5d8ea26bda6d2cd8b0b7a5604faa3a4ad47b")
+
+(defpkg bison
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/sed core/diffutils core/grep core/awk core/make
+                                m4]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src bison-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))

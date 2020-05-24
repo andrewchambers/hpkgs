@@ -1,6 +1,6 @@
 (def seed-hash "sha256:7b78403abeaacb89175b2501e91c8def7ad91287449542133bdd805c50daa645")
 
-(def seed
+(def seed-tarball
   (fetch
     :url
     "https://github.com/andrewchambers/hermes-seeds/raw/master/seed.tar.gz"
@@ -12,4 +12,4 @@
     :name
     "seed"
     :builder
-    |(unpack ;(sh/glob (string (seed :path) "/*")) :dest (dyn :pkg-out))))
+    |(unpack ;(sh/glob (string (seed-tarball :path) "/*")) :dest (dyn :pkg-out))))

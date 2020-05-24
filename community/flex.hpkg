@@ -1,0 +1,24 @@
+(use ../prelude)
+(import ../core)
+(use ./m4)
+
+(defsrc flex-src
+  :url
+  "https://github.com/westes/flex/files/981163/flex-2.6.4.tar.gz"
+  :hash
+  "sha256:e87aae032bf07c26f85ac0ed3250998c37621d95f8bd748b31f15b33c45ee995")
+
+(defpkg flex
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/sed core/grep core/awk core/make
+                                m4]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src flex-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
