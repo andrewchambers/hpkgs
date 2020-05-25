@@ -16,7 +16,7 @@
                                [core/coreutils core/gcc core/sed core/grep core/awk core/make
                                 m4]))
     (os/setenv "CFLAGS" *default-cflags*)
-    (os/setenv "LDFLAGS" *default-ldflags*)
+    (os/setenv "LDFLAGS" (string *default-ldflags* " --static"))
     (unpack-src flex-src)
     (core/link-/bin/sh)
     (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
