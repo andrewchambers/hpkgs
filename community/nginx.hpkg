@@ -1,0 +1,50 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./busybox)
+(use ./pcre)
+
+# NOTE to start nginx from a hpkg, you probably need to invoke the binary with
+# the -p switch (prefix) so nginx doesn't try to create directories and stuff
+# inside the hpkg.
+
+(defsrc nginx-src
+  :file-name
+  "nginx-1.17.10.tar.gz"
+  :url
+  "https://nginx.org/download/nginx-1.17.10.tar.gz"
+  :hash
+   "sha256:a9aa73f19c352a6b166d78e2a664bb3ef1295bbe6d3cc5aa7404bd4664ab4b83")
+
+(defpkg nginx
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (string "/bin:"
+                        (join-pkg-paths ":" "/bin"
+                                        [core/coreutils
+                                         core/gcc
+                                         core/pkgconf
+                                         autoconf
+                                         busybox
+                                         core/make])))
+     (os/setenv "PKG_CONFIG_PATH"
+                (string (pcre :path) "/lib/pkgconfig"))
+     (os/setenv "CFLAGS"
+                *default-cflags*)
+     (os/setenv "LDFLAGS"
+                (string
+                 *default-ldflags*
+                 " "
+                 (sh/$<_ pkg-config --libs libpcre2-posix)
+                 " "
+                 "-Wl,-rpath=" (join-pkg-paths ":" "/lib" [pcre])))
+     (unpack-src nginx-src)
+     (core/link-/bin/sh)
+     (sh/$ ./configure
+           --prefix= ^ (dyn :pkg-out))
+     (sh/$ make
+           -j (dyn :parallelism))
+     (sh/$ make
+           install)
+     ))
