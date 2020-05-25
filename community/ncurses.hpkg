@@ -10,9 +10,6 @@
 (defpkg ncurses
   :builder
   (fn []
-    # XXX: pkgconf or pkg-config...
-    (os/symlink (string (core/pkgconf :path) "/bin/pkgconf")
-                        "/bin/pkg-config")
     (os/setenv "PATH"
                (string "/bin:" # for /bin/sh access
                        (join-pkg-paths ":" "/bin"
