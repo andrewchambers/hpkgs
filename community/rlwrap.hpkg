@@ -1,0 +1,81 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./automake)
+(use ./libtool)
+(use ./m4)
+(use ./ncurses)
+(use ./patchelf)
+(use ./perl)
+(use ./readline)
+
+(defsrc rlwrap-src
+  :file-name
+  "rlwrap-0.43.tar.gz"
+  :url
+  "https://github.com/hanslub42/rlwrap/archive/v0.43.tar.gz"
+  :hash
+  "sha256:29e5a850fbe4753f353b0734e46ec0da043621bdcf7b52a89b77517f3941aade")
+
+(defpkg rlwrap
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk autoconf automake core/coreutils
+                                core/gcc core/grep libtool m4 core/make
+                                core/patch patchelf perl core/sed]))
+    (os/setenv "CFLAGS"
+               (string
+                 *default-cflags*
+                 " "
+                 "-I" (ncurses :path) "/include"
+                 " "
+                 "-I" (readline :path) "/include"))
+    (os/setenv "LDFLAGS"
+               (string
+                 *default-ldflags*
+                 " "
+                 "-L" (ncurses :path) "/lib"
+                 " "
+                 "-L" (readline :path) "/lib"))
+    # placate configure
+    (os/setenv "LD_LIBRARY_PATH"
+               (join-pkg-paths ":" "/lib"
+                               [ncurses readline]))
+    #
+    (unpack-src rlwrap-src)
+    (core/link-/bin/sh)
+    # need to create configure script, but first...
+    # XXX: hack configure.ac so that some tests pass
+    (spit "configure.ac.patch" ``
+--- configure.ac	2017-03-02 22:18:32.000000000 +0000
++++ configure.ac.new	2020-05-25 11:46:25.011074855 +0100
+@@ -351,7 +351,8 @@
+               AC_DEFINE($3, 1 ,[Define to 1 if your readline lib has $1])
+               last_check=yes
+            else
+-              last_check=no
++              AC_DEFINE($3, 1 ,[Define to 1 if your readline lib has $1])
++              last_check=yes
+            fi
+            remark=
+            if test x$in_lib = x0 -a x$in_header = x1 ; then
+
+``) # XXX: w/o the blank line above the patching is fuzzy
+    (sh/$ patch configure.ac configure.ac.patch)
+    (sh/$ autoreconf --install)
+    #
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)
+    #
+    (sh/$ patchelf --set-rpath
+          (join-pkg-paths ":" "/lib" [ncurses readline])
+          (dyn :pkg-out) ^ "/bin/rlwrap")
+    # XXX things in share/rlwrap/filters may start with:
+    #     #! /usr/bin/env
+    #     #! /usr/bin/python3
+))
