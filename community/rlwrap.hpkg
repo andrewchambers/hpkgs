@@ -48,7 +48,7 @@
     (core/link-/bin/sh)
     # need to create configure script, but first...
     # XXX: hack configure.ac so that some tests pass
-    (spit "configure.ac.patch" ``
+    (sh/$ patch < ``
 --- configure.ac	2017-03-02 22:18:32.000000000 +0000
 +++ configure.ac.new	2020-05-25 11:46:25.011074855 +0100
 @@ -351,7 +351,8 @@
@@ -63,7 +63,6 @@
             if test x$in_lib = x0 -a x$in_header = x1 ; then
 
 ``) # XXX: w/o the blank line above the patching is fuzzy
-    (sh/$ patch configure.ac configure.ac.patch)
     (sh/$ autoreconf --install)
     #
     (sh/$ ./configure
