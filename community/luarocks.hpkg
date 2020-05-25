@@ -1,0 +1,40 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./busybox)
+(use ./luajit)
+
+(defsrc luarocks-src
+  :file-name
+   "luarocks-3.3.1.tar.gz"
+  :url
+   "https://github.com/luarocks/luarocks/archive/v3.3.1.tar.gz"
+  :hash
+   "sha256:837481e408f7c06b59befe7ec194537c657687d624894bca7f79034302141a34")
+
+(defpkg luarocks
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (string "/bin:"
+                        (join-pkg-paths ":" "/bin"
+                                        [core/coreutils
+                                         core/gcc
+                                         autoconf
+                                         luajit
+                                         busybox
+                                         core/make])))
+     (os/setenv "CFLAGS"
+                *default-cflags*)
+     (os/setenv "LDFLAGS"
+                *default-ldflags*)
+     (unpack-src luarocks-src)
+     (core/link-/bin/sh)
+     (sh/$ ./configure
+           --with-lua= ^ (luajit :path)
+           --prefix= ^ (dyn :pkg-out))
+     (sh/$ make
+           -j (dyn :parallelism))
+     (sh/$ make
+           install)
+     ))
