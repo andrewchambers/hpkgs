@@ -1,0 +1,53 @@
+(use ../prelude)
+(import ../core)
+(use ./ncurses)
+(use ./patchelf)
+
+(defsrc readline-src
+  :file-name
+   "readline-8.0.tar.gz"
+  :url
+  "https://ftp.gnu.org/gnu/readline/readline-8.0.tar.gz"
+  :hash
+  "sha256:e339f51971478d369f8a053a330a190781acb9864cf4c541060f12078948e461")
+
+(defpkg readline
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (string (ncurses :path) "/lib/pkgconfig"))
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc
+                                core/grep core/make patchelf
+                                core/pkgconf core/sed]))
+    (os/setenv "CFLAGS"
+               (string
+                *default-cflags*
+                " "
+                "-I" (ncurses :path) "/include"))
+    (os/setenv "LDFLAGS"
+               (string
+                *default-ldflags*
+                " "
+                "-L" (ncurses :path) "/lib"))
+    (unpack-src readline-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out)
+          --with-curses
+          )
+    (sh/$ make
+          # see INSTALL file
+          SHLIB_LIBS= ^ -lncurses
+         -j (dyn :parallelism))
+    (sh/$ make install)
+    #
+    (sh/$ patchelf --set-rpath
+          (ncurses :path) ^ "/lib"
+          (dyn :pkg-out) ^ "/lib/libreadline.so.8")
+    (sh/$ patchelf --set-rpath
+          (ncurses :path) ^ "/lib"
+          (dyn :pkg-out) ^ "/lib/libhistory.so.8")
+    # XXX: leaving .pc files alone for the moment
+    ))
