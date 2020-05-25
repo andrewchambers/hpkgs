@@ -182,10 +182,6 @@
   :builder
   |(core-builder tar-src))
 
-(defpkg lzip
-  :builder
-  |(core-builder lzip-src))
-
 (defpkg xz
   :builder
   |(core-builder xz-src ["--enable-shared=no"]))
@@ -211,28 +207,6 @@
   # When building without a sandbox, this can't be done.
   (unless (os/lstat "/bin/sh")
     (os/symlink (pkg-path "/bin/dash" dash) "/bin/sh")))
-
-(defpkg core-env
-  :builder
-  (fn []
-    (def pkgs
-      [awk
-       bzip2
-       coreutils
-       dash
-       diffutils
-       findutils
-       grep
-       gzip
-       lzip
-       patch
-       sed
-       tar
-       which
-       xz])
-    (def bin-out (string (dyn :pkg-out) "/bin"))
-    (os/mkdir bin-out)
-    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)))
 
 (defsrc musl-cross-make-src
   :url "https://github.com/richfelker/musl-cross-make/archive/v0.9.9.tar.gz"
@@ -383,6 +357,27 @@
 (def gcc-rt-lite (prepare-gcc-rt true))
 (def gcc (prepare-gcc gcc-rt))
 (def gcc-lite (prepare-gcc gcc-rt-lite))
+
+(defpkg core-env
+  :builder
+  (fn []
+    (def pkgs
+      [awk
+       bzip2
+       coreutils
+       dash
+       diffutils
+       findutils
+       grep
+       gzip
+       patch
+       sed
+       tar
+       which
+       xz])
+    (def bin-out (string (dyn :pkg-out) "/bin"))
+    (os/mkdir bin-out)
+    (link-farm (map |(pkg-path "/bin" $) pkgs) bin-out)))
 
 (defpkg build-env
   :builder
