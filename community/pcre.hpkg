@@ -1,0 +1,37 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc pcre-src
+  :file-name
+   "pcre-8.44.tar.bz2"
+  :url
+   "https://ftp.pcre.org/pub/pcre/pcre-8.44.tar.bz2"
+  :hash
+   "sha256:19108658b23b3ec5058edc9f66ac545ea19f9537234be1ec62b714c84399366d")
+
+(defpkg pcre
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (join-pkg-paths ":" "/bin"
+                                [core/awk
+                                 core/coreutils
+                                 core/gcc
+                                 core/grep
+                                 core/make
+                                 core/sed]))
+     (os/setenv "CFLAGS" *default-cflags*)
+     (os/setenv "LDFLAGS"
+                (string
+                 *default-ldflags*
+                 " "
+                 # use RUNPATH
+                 "-Wl,--enable-new-dtags"))
+     (unpack-src pcre-src)
+     (core/link-/bin/sh)
+     (sh/$ ./configure
+           --prefix= ^ (dyn :pkg-out))
+     (sh/$ make
+           -j (dyn :parallelism))
+     (sh/$ make
+           install)))
