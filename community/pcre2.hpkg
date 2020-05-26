@@ -1,9 +1,7 @@
 (use ../prelude)
 (import ../core)
-(use ./autoconf)
-(use ./busybox)
 
-(defsrc pcre-src
+(defsrc pcre2-src
   :file-name
    "pcre2-10.35.tar.gz"
   :url
@@ -11,26 +9,29 @@
   :hash
    "sha256:8fdcef8c8f4cd735169dd0225fd010487970c1bcadd49e9b90e26c7250a33dc9")
 
-(defpkg pcre
+(defpkg pcre2
   :builder
    (fn []
      (os/setenv "PATH"
                 (join-pkg-paths ":" "/bin"
-                                [core/coreutils
+                                [core/awk
+                                 core/coreutils
                                  core/gcc
-                                 autoconf
-                                 busybox
-                                 core/make]))
-     (os/setenv "CFLAGS"
-                *default-cflags*)
+                                 core/grep
+                                 core/make
+                                 core/sed]))
+     (os/setenv "CFLAGS" *default-cflags*)
      (os/setenv "LDFLAGS"
-                *default-ldflags*)
-     (unpack-src pcre-src)
+                (string
+                 *default-ldflags*
+                 " "
+                 # use RUNPATH
+                 "-Wl,--enable-new-dtags"))
+     (unpack-src pcre2-src)
      (core/link-/bin/sh)
      (sh/$ ./configure
            --prefix= ^ (dyn :pkg-out))
      (sh/$ make
            -j (dyn :parallelism))
      (sh/$ make
-           install)
-     ))
+           install)))
