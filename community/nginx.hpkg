@@ -1,8 +1,9 @@
 (use ../prelude)
 (import ../core)
-(use ./autoconf)
-(use ./busybox)
+(use ./file)
+(use ./openssl)
 (use ./pcre)
+(use ./zlib)
 
 # NOTE to start nginx from a hpkg, you probably need to invoke the binary with
 # the -p switch (prefix) so nginx doesn't try to create directories and stuff
@@ -22,29 +23,34 @@
      (os/setenv "PATH"
                 (string "/bin:"
                         (join-pkg-paths ":" "/bin"
-                                        [core/coreutils
+                                        [core/awk
+                                         core/coreutils
+                                         core/diffutils
+                                         file
                                          core/gcc
-                                         core/pkgconf
-                                         autoconf
-                                         busybox
-                                         core/make])))
-     (os/setenv "PKG_CONFIG_PATH"
-                (string (pcre :path) "/lib/pkgconfig"))
-     (os/setenv "CFLAGS"
-                *default-cflags*)
-     (os/setenv "LDFLAGS"
-                (string
-                 *default-ldflags*
-                 " "
-                 (sh/$<_ pkg-config --libs libpcre2-posix)
-                 " "
-                 "-Wl,-rpath=" (join-pkg-paths ":" "/lib" [pcre])))
+                                         core/grep
+                                         core/make
+                                         core/sed])))
+     # XXX: may end up using system's file for non-chrooted setups
+     (unless (os/lstat "/usr/bin/file")
+       (os/mkdir "/usr")
+       (os/mkdir "/usr/bin")
+       (os/symlink (string (file :path) "/bin/file")
+                   "/usr/bin/file"))
+     (os/setenv "CFLAGS" *default-cflags*)
+     (os/setenv "LDFLAGS" *default-ldflags*)
      (unpack-src nginx-src)
      (core/link-/bin/sh)
+     (unpack-src openssl-src)
+     (unpack-src pcre-src)
+     (unpack-src zlib-src)
      (sh/$ ./configure
-           --prefix= ^ (dyn :pkg-out))
+           --prefix= ^ (dyn :pkg-out)
+           # XXX: hmmm...version numbers...
+           --with-openssl= ^ ./openssl-1.1.1g
+           --with-pcre= ^ ./pcre-8.44
+           --with-zlib= ^ ./zlib-1.2.11)
      (sh/$ make
            -j (dyn :parallelism))
      (sh/$ make
-           install)
-     ))
+           install)))
