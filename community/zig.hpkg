@@ -1,0 +1,87 @@
+(use ../prelude)
+(import ../core)
+(use ./cmake)
+(use ./llvmorg) # clang and lld
+
+(defsrc zig-src
+  :file-name
+  "zig-0.6.0.tar.gz"
+  :url
+  "https://github.com/ziglang/zig/archive/0.6.0.tar.gz"
+  :hash
+  "sha256:a1bc8df40399aff7391cedb401e51579c679cff1c4f7f653cffefdf4d076aa3a")
+
+(defpkg zig
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [clang
+                                        cmake
+                                        core/coreutils
+                                        core/gcc
+                                        lld
+                                        core/make])))
+    (unless (os/lstat "/bin/ld")
+      (os/symlink (string (lld :path) "/bin/ld.lld")
+                  "/bin/ld"))
+    # XXX
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L" (core/gcc :path) "/x86_64-linux-musl/lib"
+                       " "
+                       "-L" (core/gcc :path) "/lib/gcc/x86_64-linux-musl/9.2.0"
+                       " "
+                       "-L" (lld :path) "/lib"
+                       " "
+                       "-L" (clang :path) "/lib"))
+    # XXX
+    (os/setenv "LD_LIBRARY_PATH"
+               (string (core/gcc :path) "/x86_64-linux-musl/lib"
+                       ":"
+                       (core/gcc :path) "/lib/gcc/x86_64-linux-musl/9.2.0"
+                       ":"
+                       (join-pkg-paths ":" "/lib"
+                                       [clang lld])))
+    (unpack-src zig-src)
+    # XXX: zig somehow wants $HOME
+    (os/mkdir "/build/home")
+    (os/setenv "HOME" "/build/home")
+    # XXX: hacky and fragile
+    (rewrite "cmake/Findclang.cmake"
+             |(string/replace "/mingw64/include"
+                              (string (clang :path) "/include")
+                              $))
+    # XXX: hacky and fragile
+    (rewrite "cmake/Findclang.cmake"
+             |(string/replace "/mingw64/lib"
+                              (string (clang :path) "/lib")
+                              $))
+    # XXX: hacky and fragile
+    (rewrite "cmake/Findlld.cmake"
+             |(string/replace "/mingw64/include"
+                              (string (lld :path) "/include")
+                              $))
+    # XXX: hacky and fragile
+    (rewrite "cmake/Findlld.cmake"
+             |(string/replace "/mingw64/lib"
+                              (string (lld :path) "/lib")
+                              $))
+    (core/link-/bin/sh)
+    # XXX: use cmake options instead of mkdir / cd?
+    (os/mkdir "build")
+    (os/cd "build")
+    (sh/$ cmake
+          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
+          -DCMAKE_BUILD_TYPE= ^ None
+          ..)
+    (sh/$ make
+          -j (dyn :parallelism))
+    (os/cd "..")
+    (sh/$ make
+          -C build
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
