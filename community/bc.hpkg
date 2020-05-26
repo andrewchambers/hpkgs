@@ -1,0 +1,20 @@
+(use ../prelude)
+(import ../core)
+
+# NOTE This is not the gnu bc, if we run into issues we can package that and rename this one.
+(defsrc bc-src
+  :url "https://git.yzena.com/attachments/3c9efffe-bbc5-469a-9287-7f258783cc1e"
+  :hash "sha256:c017a6c0482cf7c4a2b31dae1f406028017a5e939d98dd6c78aa94ce3ecc8d38")
+
+(defpkg bc
+  :builder
+  (fn []
+    (core/link-/bin/sh)
+    (os/setenv "PATH" (join-pkg-paths ":" "/bin" [core/coreutils core/gcc core/sed core/findutils core/make]))
+    (os/setenv "CC" "gcc")
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src bc-src)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))

@@ -298,6 +298,7 @@
       (os/symlink "./x86_64-linux-musl-nm" "nm")
       (os/symlink "./x86_64-linux-musl-objcopy" "objcopy")
       (os/symlink "./x86_64-linux-musl-objdump" "objdump")
+      (os/symlink "./x86_64-linux-musl-readelf" "readelf")
       (os/symlink "./x86_64-linux-musl-ranlib" "ranlib")
       (os/symlink "./x86_64-linux-musl-strings" "strings")
       (os/symlink "./x86_64-linux-musl-strip" "strip"))))

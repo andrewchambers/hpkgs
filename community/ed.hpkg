@@ -1,0 +1,21 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc ed-src
+  :url
+  "http://ftpmirror.gnu.org/ed/ed-1.16.tar.lz"
+  :hash
+  "sha256:cfc07a14ab048a758473ce222e784fbf031485bcd54a76f74acfee1f390d8b2c")
+
+(defpkg ed
+  :builder
+  (fn []
+    (core/link-/bin/sh)
+    (os/setenv "PATH" (join-pkg-paths ":" "/bin" [core/coreutils core/sed core/grep
+                                                  core/awk core/gcc core/make]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src ed-src)
+    (sh/$ ./configure "--prefix=" ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))

@@ -47,5 +47,5 @@
     (sh/$ make install)
     (rewrite (string (dyn :pkg-out) "/lib/pkgconfig/libarchive.pc")
              |(string/replace "Libs: "
-                              (string "Libs: -Wl,rpath=" (dyn :pkg-out) "/lib ")
+                              (string "Libs: -Wl,-rpath=" (dyn :pkg-out) "/lib ")
                               $))))
