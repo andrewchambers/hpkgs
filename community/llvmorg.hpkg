@@ -1,0 +1,125 @@
+(use ../prelude)
+(import ../core)
+(use ./cmake)
+(use ./ninja)
+(use ./python3) # for tests
+
+(defsrc llvmorg-src
+  :url
+  "https://github.com/llvm/llvm-project/archive/llvmorg-10.0.0.tar.gz"
+  :hash
+  "sha256:b81c96d2f8f40dc61b14a167513d87c0d813aae0251e06e11ae8a4384ca15451")
+
+# https://llvm.org/docs/GettingStarted.html#software
+(defpkg clang
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [cmake
+                                        core/coreutils
+                                        core/gcc
+                                        core/grep
+                                        ninja
+                                        python3
+                                        core/sed])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src llvmorg-src)
+    # XXX: unsure if this is necessary
+    (rewrite "clang/lib/Driver/ToolChains/Gnu.cpp"
+             |(string/replace
+               "      \"x86_64-slackware-linux\", \"x86_64-unknown-linux\","
+               (string "      \"x86_64-slackware-linux\", \"x86_64-unknown-linux\","
+                       " \"x86_64-musl-linux\",")
+               $))
+    # this rewriting is necessary
+    (rewrite "clang/lib/Driver/ToolChains/Linux.cpp"
+             |(string/replace
+               "  return \"/lib/ld-musl-\" + ArchName + \".so.1\";"
+               # /hpkg/<hash>-rt/x86_64-linux-musl/lib/ld-musl-x86_64.so.1
+               # ^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^^^^^^^      ^^^^^
+               (string "  return "
+                       "\""
+                       (core/gcc-rt :path) "/"
+                       "\""
+                       " + ArchName + "
+                       "\""
+                       "-linux-musl/lib/ld-musl-"
+                       "\""
+                       " + ArchName + "
+                       "\".so.1\";")
+               $))
+    #
+    (core/link-/bin/sh)
+    # XXX: use cmake options instead of mkdir / cd?
+    (os/mkdir "build")
+    (os/cd "build")
+    # https://llvm.org/docs/CMake.html#llvm-specific-variables
+    (sh/$ cmake
+          -G Ninja
+          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
+          -DCMAKE_BUILD_TYPE= ^ Release
+          # XXX: apparently zig needs it all...
+          #-DLLVM_TARGETS_TO_BUILD= ^ "X86"
+          -DLLVM_ENABLE_PROJECTS= ^ "clang"
+          # XXX: trying to remove python dep but failed
+          -DLLVM_BUILD_TESTS= ^ OFF
+          -DLLVM_INCLUDE_TESTS= ^ OFF
+          # XXX: https://llvm.org/docs/HowToCrossCompileLLVM.html
+          -DCMAKE_CXX_FLAGS= ^ "'-march=x86-64'"
+          -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-linux-musl
+          -target x86_64-musl-linux
+          --sysroot= ^ (core/gcc :path) ^ "/x86_64-linux-musl"
+          ../llvm)
+    (sh/$ cmake
+          --build .
+          -j (dyn :parallelism))
+    (sh/$ cmake
+          --build .
+          --target install)))
+
+(defpkg lld
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [cmake
+                                        core/coreutils
+                                        core/gcc
+                                        core/grep
+                                        ninja
+                                        python3
+                                        core/sed])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src llvmorg-src)
+    (core/link-/bin/sh)
+    # XXX: use cmake options instead of mkdir / cd?
+    (os/mkdir "build")
+    (os/cd "build")
+    # https://llvm.org/docs/CMake.html#llvm-specific-variables
+    (sh/$ cmake
+          -G Ninja
+          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
+          -DCMAKE_BUILD_TYPE= ^ Release
+          # XXX: apparently zig needs it all...
+          #-DLLVM_TARGETS_TO_BUILD= ^ "X86"
+          -DLLVM_ENABLE_PROJECTS= ^ "lld"
+          # XXX: trying to remove python dep but failed
+          -DLLVM_BUILD_TESTS= ^ OFF
+          -DLLVM_INCLUDE_TESTS= ^ OFF
+          # XXX: https://llvm.org/docs/HowToCrossCompileLLVM.html
+          -DCMAKE_CXX_FLAGS= ^ "'-march=x86-64'"
+          -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-linux-musl
+          -target x86_64-musl-linux
+          --sysroot= ^ (core/gcc :path) ^ "/x86_64-linux-musl"
+          ../llvm)
+    (sh/$ cmake
+          --build .
+          -j (dyn :parallelism))
+    (sh/$ cmake
+          --build .
+          --target install)))
