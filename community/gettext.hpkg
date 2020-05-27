@@ -1,0 +1,36 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc gettext-src
+  :url
+  "https://ftp.gnu.org/pub/gnu/gettext/gettext-0.20.tar.xz"
+  :hash
+  "sha256:a248207fd726ca35c57fe9f01e748c36c60b864bb624b58f9983a0f98b633924")
+
+(defpkg gettext
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:" # XXX: for /bin/sh
+                       (join-pkg-paths ":" "/bin"
+                                       [core/awk core/coreutils core/diffutils
+                                        core/findutils core/gcc core/grep
+                                        core/gzip core/make core/sed])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       # use RUNPATH
+                       "-Wl,--enable-new-dtags"))
+    (unpack-src gettext-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          # XXX: might cause error(?)
+          #-j (dyn :parallelism)
+          )
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
