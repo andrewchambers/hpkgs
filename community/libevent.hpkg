@@ -1,0 +1,51 @@
+(use ../prelude)
+(import ../core)
+(use ./autoconf)
+(use ./automake)
+(use ./libtool)
+(use ./m4)
+(use ./python3)
+
+(defsrc libevent-src
+  :file-name
+  "libevent-2.1.11.tar.gz"
+  :url
+  "https://github.com/libevent/libevent/archive/release-2.1.11-stable.tar.gz"
+  :hash
+  "sha256:229393ab2bf0dc94694f21836846b424f3532585bac3468738b7bf752c03901e")
+
+(defpkg libevent
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [autoconf automake core/awk core/coreutils
+                                core/gcc core/grep libtool m4
+                                core/make core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src libevent-src)
+    (core/link-/bin/sh)
+    # XXX: may end up using system's env for non-chrooted setups
+    (unless (os/lstat "/usr/bin/env")
+      (os/symlink (string (core/coreutils :path) "/bin/env")
+                  "/usr/bin/env"))
+    # XXX: may end up using system's python for non-chrooted setups
+    (unless (os/lstat "/usr/bin/python")
+      (os/symlink (string (python3 :path) "/bin/python3")
+                  "/usr/bin/python"))
+    # XXX: contrary to docs, there was no configure, thus:
+    #        https://askubuntu.com/a/27679
+    (sh/$ libtoolize --force)
+    (sh/$ aclocal)
+    (sh/$ autoheader)
+    (sh/$ automake --force-missing --add-missing)
+    (sh/$ autoconf)
+    # XXX: this didn't work, which is why tried above sequence
+    #(sh/$ ./autogen.sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)
+    # XXX: change path in .py file that's in bin?
+))
