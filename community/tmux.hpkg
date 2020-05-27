@@ -1,0 +1,43 @@
+(use ../prelude)
+(import ../core)
+(use ./libevent)
+(use ./ncurses)
+(use ./patchelf)
+
+(defsrc tmux-src
+  :url
+  "https://github.com/tmux/tmux/releases/download/3.1b/tmux-3.1b.tar.gz"
+  :hash
+  "sha256:d93f351d50af05a75fe6681085670c786d9504a5da2608e481c47cf5e1486db9")
+
+(defpkg tmux
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (join-pkg-paths ":" "/lib/pkgconfig" [libevent ncurses]))
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc
+                                core/grep core/make patchelf
+                                core/pkgconf core/sed]))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       (sh/$<_ pkg-config --cflags libevent ncurses)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       (sh/$<_ pkg-config --libs libevent ncurses)))
+    # placate configure
+    (os/setenv "LD_LIBRARY_PATH"
+               (join-pkg-paths ":" "/lib" [libevent ncurses]))
+    (unpack-src tmux-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)
+    (sh/$ patchelf --set-rpath
+                   (join-pkg-paths ":" "/lib" [libevent ncurses])
+                   (dyn :pkg-out) ^ "/bin/tmux")))
