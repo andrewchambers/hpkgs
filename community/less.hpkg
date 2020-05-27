@@ -1,0 +1,39 @@
+(use ../prelude)
+(import ../core)
+(use ./ncurses)
+
+(defsrc less-src
+  :url
+  "http://www.greenwoodsoftware.com/less/less-551.tar.gz"
+  :hash
+  "sha256:ff165275859381a63f19135a8f1f6c5a194d53ec3187f94121ecd8ef0795fe3d")
+
+(defpkg less
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (string (ncurses :path) "/lib/pkgconfig"))
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/awk core/coreutils core/gcc
+                                        core/grep core/make core/pkgconf
+                                        core/sed])))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       (sh/$<_ pkg-config --cflags ncurses)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       (sh/$<_ pkg-config --libs ncurses)))
+    # placate configure
+    (os/setenv "LD_LIBRARY_PATH"
+               (string (ncurses :path) "/lib"))
+    (core/link-/bin/sh)
+    (unpack-src less-src)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))
