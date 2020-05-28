@@ -3,6 +3,17 @@
 Building packages from source can be quite tricky, and here are some tips and
 tricks you can use when writing `hpkg`s.
 
+### Build it manually first
+
+It can be tempting to jump right in, but if you don't spend up front time learning how to
+build the software manually, you might have some pain.
+
+For difficult packages, consider investing in a 'shell' package,
+which just contains a way to run commands with env vars set for you to test with.
+This should help you manually test things with a fast iteration time.
+
+In the future hpkgs may come with helper functions or a repl for helping you do this.
+
 ### Determine what the package's build system(s) is/are
 
 * It might contain configurations for script-generating systems, for example,
@@ -15,17 +26,6 @@ tricks you can use when writing `hpkg`s.
 
 The build process/system/configuration can give lot of hints with regards to
 which _dependencies_ are required.
-
-### Build it manually first
-
-It can be tempting to jump right in, but if you don't spend up front time learning how to
-build the software manually, you might have some pain.
-
-For difficult packages, consider investing in a 'shell' package,
-which just contains a way to run commands with env vars set for you to test with.
-This should help you manually test things with a fast iteration time.
-
-In the future hpkgs may come with helper functions or a repl for helping you do this.
 
 ### There are many existing package-repositories
 
