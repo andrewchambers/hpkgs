@@ -1,0 +1,124 @@
+(use ../prelude)
+(import ../core)
+(use ./capstone)
+(use ./file)
+(use ./xxhash)
+(use ./zlib)
+(use ./libzip)
+(use ./lz4)
+(use ./openssl)
+(use ./libuv)
+
+# XXX tree-sitter can be used to enable features.
+
+(defsrc radare2-src
+  :file-name
+  "radare2-4.4.0.tar.gz"
+  :url
+  "https://github.com/radareorg/radare2/archive/4.4.0.tar.gz"
+  :hash
+  "sha256:401ab89f39f7e70e03336f6890dc4fdf52dae4f61201e4cd8a1fbe5a4b9eb451")
+
+(defpkg radare2
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (string
+                (join-pkg-paths ":" "/lib64/pkgconfig"
+                                [libuv libzip])
+                ":"
+                (join-pkg-paths ":" "/lib/pkgconfig"
+                                [capstone zlib openssl xxhash lz4])))
+
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/findutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/patch
+                                core/sed
+                                core/awk
+                                core/tar
+                                core/pkgconf
+                               ]))
+    (core/link-/bin/sh)
+    (unpack-src radare2-src)
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       "-I" (capstone :path) "/include"
+                       " "
+                       "-I" (file :path) "/include"
+                       " "
+                       "-I" (xxhash :path) "/include"
+                       " "
+                       "-I" (openssl :path) "/include"
+                       " "
+                       "-I" (zlib :path) "/include"
+                       " "
+                       "-I" (libzip :path) "/include"
+                       " "
+                       "-I" (lz4 :path) "/include"
+                       " "
+                       "-I" (libuv :path) "/include"
+                       " "
+                       (sh/$<_ pkg-config --cflags capstone "liblz4" zlib libuv libxxhash openssl)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L" (capstone :path) "/lib"
+                       " "
+                       "-L" (file :path) "/lib"
+                       " "
+                       "-L" (zlib :path) "/lib"
+                       " "
+                       "-L" (libzip :path) "/lib64"
+                       " "
+                       "-L" (lz4 :path) "/lib"
+                       " "
+                       "-L" (xxhash :path) "/lib"
+                       " "
+                       "-L" (openssl :path) "/lib"
+                       " "
+                       "-L" (libuv :path) "/lib64"
+                       " "
+                       "-Wl,-rpath=" (string
+                                      (join-pkg-paths ":" "/lib64"
+                                                      [libuv libzip])
+                                      ":"
+                                      (dyn :pkg-out) "/lib" # to find own libs
+                                      ":"
+                                      (join-pkg-paths ":" "/lib"
+                                                      [capstone lz4 zlib file xxhash openssl]))
+                       " "
+                       "-lmagic" # doesn't have a .pc
+                       " "
+                       (sh/$<_ pkg-config --libs capstone "liblz4" zlib libzip libuv libxxhash openssl)))
+
+    (os/setenv "LD_LIBRARY_PATH"
+               (string
+                (join-pkg-paths ":" "/lib"
+                                [libuv libzip])
+                ":"
+                (join-pkg-paths ":" "/lib"
+                                [capstone lz4 zlib libzip openssl file xxhash])))
+
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out)
+          --with-syscapstone
+          --with-sysxxhash
+          --with-syszip
+          --with-sysmagic
+          --with-openssl
+          --shared)
+
+    # XXX: seems like it the makefiles assumes that /lib exists
+    (os/mkdir (string (dyn :pkg-out) "/lib"))
+
+    (sh/$ make
+          -j (dyn :parallelism))
+
+    (sh/$ make
+          install)))

@@ -1,0 +1,44 @@
+(use ../prelude)
+(import ../core)
+(use ./cmake)
+
+(defsrc libuv-src
+  :file-name
+  "libuv-1.38.0.tar.gz"
+  :url
+  "https://github.com/libuv/libuv/archive/v1.38.0.tar.gz"
+  :hash
+  "sha256:2cd9a757fe6c512440933e2bdcab21143d4aa6249b2541399908ce038b756c9d")
+
+(defpkg libuv
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/patch
+                                core/sed
+                                core/awk
+                                cmake
+                                core/pkgconf]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+
+    # XXX: unsure if actually needed
+    (os/setenv "PREFIX" (dyn :pkg-out))
+
+    (core/link-/bin/sh)
+    (unpack-src libuv-src)
+
+    (os/mkdir "build")
+    (os/cd "build")
+    (sh/$ cmake
+          -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
+          "..")
+
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))

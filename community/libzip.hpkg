@@ -1,0 +1,66 @@
+(use ../prelude)
+(import ../core)
+(use ./cmake)
+(use ./zlib)
+
+(defsrc libzip-src
+  :file-name
+   "libzip-1-6-1.tar.gz"
+  :url
+   "https://github.com/nih-at/libzip/archive/rel-1-6-1.tar.gz"
+  :hash
+   "sha256:4f4e1991bf6b592e3d602d6b7b753c53ddadb2d76fca27d58120b8fadef7f1bf")
+
+(defpkg libzip
+  :builder
+   (fn []
+     (os/setenv "PKG_CONFIG_PATH"
+                (join-pkg-paths ":" "/lib/pkgconfig"
+                                 [zlib]))
+
+     (os/setenv "PATH"
+                (join-pkg-paths ":" "/bin"
+                                [core/awk
+                                 core/coreutils
+                                 core/pkgconf
+                                 core/gcc
+                                 core/grep
+                                 core/make
+                                 core/sed
+                                 cmake]))
+
+     (os/setenv "CFLAGS"
+                (string *default-cflags*
+                        " "
+                        "-I" (zlib :path) "/include"
+                        " "
+                        (sh/$<_ pkg-config --cflags zlib)))
+     (os/setenv "LDFLAGS"
+                (string *default-ldflags*
+                        " "
+                        "-L" (zlib :path) "/lib"
+                        " "
+                        "-Wl,-rpath=" (string
+                                       (dyn :pkg-out) "/lib64"
+                                       ":"
+                                       (join-pkg-paths ":" "/lib"
+                                                       [zlib]))
+                        " "
+                        (sh/$<_ pkg-config --libs zlib)))
+
+     (unpack-src libzip-src)
+     (core/link-/bin/sh)
+
+     (os/mkdir "build")
+     (os/cd "build")
+     (sh/$ cmake
+           # in this case, cmake does not seem to honour the -l and -L switches fully, so
+           -DZLIB_INCLUDE_DIR= ^ (string (zlib :path) "/include")
+           -DZLIB_LIBRARY= ^ (string (zlib :path) "/lib")
+           -DCMAKE_SKIP_RPATH=TRUE # ie. skip stripping, I think
+           -DCMAKE_INSTALL_PREFIX= ^ (dyn :pkg-out)
+           "..")
+
+     (sh/$ make
+           -j (dyn :parallelism))
+     (sh/$ make install)))

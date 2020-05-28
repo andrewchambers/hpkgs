@@ -1,0 +1,29 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc xxhash-src
+  :file-name
+   "xxhash-0.7.3.tar.gz"
+  :url
+   "https://github.com/Cyan4973/xxHash/archive/v0.7.3.tar.gz"
+  :hash
+   "sha256:952ebbf5b11fbf59ae5d760a562d1e9112278f244340ad7714e8556cbe54f7f7")
+
+(defpkg xxhash
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (join-pkg-paths ":" "/bin"
+                                [core/coreutils core/gcc core/make
+                                 core/sed core/which]))
+
+     (unpack-src xxhash-src)
+     (core/link-/bin/sh)
+     (sh/$ make
+           PREFIX= ^ (dyn :pkg-out)
+           -j (dyn :parallelism))
+
+     (sh/$ make
+           PREFIX= ^ (dyn :pkg-out)
+           install)
+     ))
