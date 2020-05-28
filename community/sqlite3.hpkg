@@ -1,0 +1,25 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc sqlite3-src
+  :url
+  "https://www.sqlite.org/2020/sqlite-autoconf-3310100.tar.gz"
+  :hash
+  "sha256:62284efebc05a76f909c580ffa5c008a7d22a1287285d68b7825a2b6b51949ae")
+
+(defpkg sqlite3
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk core/coreutils core/gcc
+                                core/grep core/make core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src sqlite3-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))
