@@ -16,7 +16,10 @@
                                [core/coreutils core/gcc core/make python3
                                 core/sed core/which]))
     (os/setenv "CFLAGS" *default-cflags*)
-    (os/setenv "LDFLAGS" *default-ldflags*)
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-Wl,--enable-new-dtags"))
     (unpack-src talloc-src)
     (core/link-/bin/sh)
     # XXX: waf is a python script starting with /usr/bin/env
