@@ -15,12 +15,11 @@
      (os/setenv "PATH"
                 (join-pkg-paths ":" "/bin"
                                 [core/coreutils core/gcc core/make
-                                 core/sed core/which]))
+                                 core/sed]))
 
      (unpack-src xxhash-src)
      (core/link-/bin/sh)
      (sh/$ make
-           PREFIX= ^ (dyn :pkg-out)
            -j (dyn :parallelism))
 
      (sh/$ make
