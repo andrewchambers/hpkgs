@@ -86,6 +86,7 @@ then
   ln -s ./x86_64-linux-musl-as as
   ln -s ./x86_64-linux-musl-c++ c++
   ln -s ./x86_64-linux-musl-c++ g++
+  ln -s ./x86_64-linux-musl-cpp cpp
   ln -s ./x86_64-linux-musl-gcc cc
   ln -s ./x86_64-linux-musl-gcc gcc
   ln -s ./x86_64-linux-musl-ld ld
