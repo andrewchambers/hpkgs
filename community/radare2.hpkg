@@ -48,62 +48,44 @@
     (os/setenv "CFLAGS"
                (string *default-cflags*
                        " "
-                       "-I" (capstone :path) "/include"
-                       " "
-                       "-I" (file :path) "/include"
-                       " "
-                       "-I" (xxhash :path) "/include"
-                       " "
-                       "-I" (openssl :path) "/include"
-                       " "
-                       "-I" (zlib :path) "/include"
-                       " "
-                       "-I" (libzip :path) "/include"
-                       " "
-                       "-I" (lz4 :path) "/include"
-                       " "
-                       "-I" (libuv :path) "/include"
+                       (string/join (map |(string "-I" ($ :path) "/include")
+                                         [capstone
+                                          file
+                                          zlib
+                                          lz4
+                                          xxhash
+                                          openssl
+                                          libuv
+                                          libzip]) " ")
                        " "
                        (sh/$<_ pkg-config --cflags capstone "liblz4" zlib libuv libxxhash openssl)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
-                       "-L" (capstone :path) "/lib"
+                       (string/join (map |(string "-L" ($ :path) "/lib")
+                                         [capstone
+                                          file
+                                          zlib
+                                          lz4
+                                          xxhash
+                                          openssl]) " ")
                        " "
-                       "-L" (file :path) "/lib"
-                       " "
-                       "-L" (zlib :path) "/lib"
-                       " "
-                       "-L" (libzip :path) "/lib64"
-                       " "
-                       "-L" (lz4 :path) "/lib"
-                       " "
-                       "-L" (xxhash :path) "/lib"
-                       " "
-                       "-L" (openssl :path) "/lib"
-                       " "
-                       "-L" (libuv :path) "/lib64"
+                       (string/join (map |(string "-L" ($ :path) "/lib64")
+                                         [libuv
+                                          libzip]) " ")
                        " "
                        "-Wl,-rpath=" (string
-                                      (join-pkg-paths ":" "/lib64"
-                                                      [libuv libzip])
-                                      ":"
                                       (dyn :pkg-out) "/lib" # to find own libs
                                       ":"
                                       (join-pkg-paths ":" "/lib"
-                                                      [capstone lz4 zlib file xxhash openssl]))
+                                                      [capstone file zlib lz4 xxhash openssl])
+                                      ":"
+                                      (join-pkg-paths ":" "/lib64"
+                                                      [libuv libzip]))
                        " "
                        "-lmagic" # doesn't have a .pc
                        " "
-                       (sh/$<_ pkg-config --libs capstone "liblz4" zlib libzip libuv libxxhash openssl)))
-
-    (os/setenv "LD_LIBRARY_PATH"
-               (string
-                (join-pkg-paths ":" "/lib"
-                                [libuv libzip])
-                ":"
-                (join-pkg-paths ":" "/lib"
-                                [capstone lz4 zlib libzip openssl file xxhash])))
+                       (sh/$<_ pkg-config --libs capstone zlib "liblz4" libxxhash openssl libuv libzip)))
 
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out)
@@ -111,8 +93,7 @@
           --with-sysxxhash
           --with-syszip
           --with-sysmagic
-          --with-openssl
-          --shared)
+          --with-openssl)
 
     # XXX: seems like it the makefiles assumes that /lib exists
     (os/mkdir (string (dyn :pkg-out) "/lib"))
