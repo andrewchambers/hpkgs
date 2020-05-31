@@ -36,6 +36,8 @@
      (os/setenv "LDFLAGS"
                 (string *default-ldflags*
                         " "
+                        "-Wl,--enable-new-dtags"
+                        " "
                         "-Wl,-rpath=" (string
                                        (dyn :pkg-out) "/lib64"
                                        ":"
