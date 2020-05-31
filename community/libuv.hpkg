@@ -27,9 +27,6 @@
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" *default-ldflags*)
 
-    # XXX: unsure if actually needed
-    (os/setenv "PREFIX" (dyn :pkg-out))
-
     (core/link-/bin/sh)
     (unpack-src libuv-src)
 
