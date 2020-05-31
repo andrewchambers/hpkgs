@@ -41,10 +41,10 @@
                                 core/sed
                                 core/awk
                                 core/tar
-                                core/pkgconf
-                               ]))
+                                core/pkgconf]))
     (core/link-/bin/sh)
     (unpack-src radare2-src)
+
     (os/setenv "CFLAGS"
                (string *default-cflags*
                        " "
