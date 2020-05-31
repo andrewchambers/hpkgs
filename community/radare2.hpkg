@@ -48,31 +48,23 @@
     (os/setenv "CFLAGS"
                (string *default-cflags*
                        " "
-                       (string/join (map |(string "-I" ($ :path) "/include")
-                                         [capstone
-                                          file
-                                          zlib
-                                          lz4
-                                          xxhash
-                                          openssl
-                                          libuv
-                                          libzip]) " ")
+                       (string "-I" (file :path) "/include")
                        " "
-                       (sh/$<_ pkg-config --cflags capstone "liblz4" zlib libuv libxxhash openssl)))
+                       # capstone does this weird thing that there is a `capstone` directory in the
+                       # include/ directory, the the .pc points to this, whereas radare2
+                       # #includes <capstone/capstone.h>, thus we need to add this -I so that radare2
+                       # finds the header files.
+                       (string "-I" (capstone :path) "/include")
+                       " "
+                       (sh/$<_ pkg-config --cflags capstone liblz4 zlib libuv libxxhash libssl libcrypto)))
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
-                       (string/join (map |(string "-L" ($ :path) "/lib")
-                                         [capstone
-                                          file
-                                          zlib
-                                          lz4
-                                          xxhash
-                                          openssl]) " ")
+                       "-Wl,--enable-new-dtags"
                        " "
-                       (string/join (map |(string "-L" ($ :path) "/lib64")
-                                         [libuv
-                                          libzip]) " ")
+                       "-lmagic"
+                       " "
+                       (string "-L" (file :path) "/lib")
                        " "
                        "-Wl,-rpath=" (string
                                       (dyn :pkg-out) "/lib" # to find own libs
@@ -83,9 +75,7 @@
                                       (join-pkg-paths ":" "/lib64"
                                                       [libuv libzip]))
                        " "
-                       "-lmagic" # doesn't have a .pc
-                       " "
-                       (sh/$<_ pkg-config --libs capstone zlib "liblz4" libxxhash openssl libuv libzip)))
+                       (sh/$<_ pkg-config --libs capstone zlib liblz4 libxxhash libssl libcrypto libuv libzip)))
 
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out)
@@ -94,9 +84,6 @@
           --with-syszip
           --with-sysmagic
           --with-openssl)
-
-    # XXX: seems like it the makefiles assumes that /lib exists
-    (os/mkdir (string (dyn :pkg-out) "/lib"))
 
     (sh/$ make
           -j (dyn :parallelism))

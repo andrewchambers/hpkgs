@@ -52,7 +52,7 @@
      (os/mkdir "build")
      (os/cd "build")
      (sh/$ cmake
-           # in this case, cmake does not seem to honour the -I, -li
+           # in this case, cmake does not seem to honour the -I, -l
            # and -L switches fully, so
            -DZLIB_INCLUDE_DIR= ^ (string (zlib :path) "/include")
            -DZLIB_LIBRARY= ^ (string (zlib :path) "/lib")
