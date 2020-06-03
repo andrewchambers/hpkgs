@@ -1,21 +1,23 @@
 (use ../prelude)
+(use ./perl)
 (import ../core)
 
-(defsrc yasm-src
+(defsrc nasm-src
   :url
-  "http://www.tortall.net/projects/yasm/releases/yasm-1.3.0.tar.gz"
+  "https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.xz"
   :hash
-  "sha256:3dce6601b495f5b3d45b59f7d2492a340ee7e84b5beca17e48f862502bd5603f")
+  "sha256:e24ade3e928f7253aa8c14aa44726d1edf3f98643f87c9d72ec1df44b26be8f5")
 
-(defpkg yasm
+(defpkg nasm
   :builder
   (fn []
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [core/coreutils core/gcc core/sed core/grep core/awk core/make]))
+                               [core/coreutils core/gcc core/sed core/findutils
+                                core/grep core/awk core/make perl]))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" (string *default-ldflags* " --static"))
-    (unpack-src yasm-src)
+    (unpack-src nasm-src)
     (core/link-/bin/sh)
     (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
     (sh/$ make -j (dyn :parallelism))
