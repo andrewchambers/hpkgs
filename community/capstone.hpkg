@@ -1,0 +1,35 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc capstone-src
+  :file-name
+   "capstone-4.0.2.tar.gz"
+  :url
+   "https://github.com/aquynh/capstone/archive/4.0.2.tar.gz"
+  :hash
+   "sha256:7c81d798022f81e7507f1a60d6817f63aa76e489aa4e7055255f21a22f5e526a")
+
+(defpkg capstone
+  :builder
+   (fn []
+     (os/setenv "PATH"
+                (join-pkg-paths ":" "/bin"
+                                [core/coreutils
+                                 core/grep
+                                 core/awk
+                                 core/sed
+                                 core/pkgconf
+                                 core/gcc core/make]))
+
+     (os/setenv "CFLAGS" *default-cflags*)
+     (os/setenv "LDFLAGS" *default-ldflags*)
+
+     # XXX: this assumes x86_64 target platform. Otherwise this should be lib64, I think
+     (os/setenv "LIBDIR" "lib")
+     (os/setenv "PREFIX" (dyn :pkg-out))
+
+     (unpack-src capstone-src)
+     (core/link-/bin/sh)
+
+     (sh/$ make -j (dyn :parallelism))
+     (sh/$ make install)))

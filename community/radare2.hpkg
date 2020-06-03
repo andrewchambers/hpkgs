@@ -1,0 +1,92 @@
+(use ../prelude)
+(import ../core)
+(use ./capstone)
+(use ./file)
+(use ./xxhash)
+(use ./zlib)
+(use ./libzip)
+(use ./lz4)
+(use ./openssl)
+(use ./libuv)
+
+# XXX tree-sitter can be used to enable features.
+
+(defsrc radare2-src
+  :file-name
+  "radare2-4.4.0.tar.gz"
+  :url
+  "https://github.com/radareorg/radare2/archive/4.4.0.tar.gz"
+  :hash
+  "sha256:401ab89f39f7e70e03336f6890dc4fdf52dae4f61201e4cd8a1fbe5a4b9eb451")
+
+(defpkg radare2
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (string
+                (join-pkg-paths ":" "/lib64/pkgconfig"
+                                [libuv libzip])
+                ":"
+                (join-pkg-paths ":" "/lib/pkgconfig"
+                                [capstone zlib openssl xxhash lz4])))
+
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/findutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/patch
+                                core/sed
+                                core/awk
+                                core/tar
+                                core/pkgconf]))
+    (core/link-/bin/sh)
+    (unpack-src radare2-src)
+
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       (string "-I" (file :path) "/include")
+                       " "
+                       # capstone does this weird thing that there is a `capstone` directory in the
+                       # include/ directory, the the .pc points to this, whereas radare2
+                       # #includes <capstone/capstone.h>, thus we need to add this -I so that radare2
+                       # finds the header files.
+                       (string "-I" (capstone :path) "/include")
+                       " "
+                       (sh/$<_ pkg-config --cflags capstone liblz4 zlib libuv libxxhash libssl libcrypto)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-Wl,--enable-new-dtags"
+                       " "
+                       "-lmagic"
+                       " "
+                       (string "-L" (file :path) "/lib")
+                       " "
+                       "-Wl,-rpath=" (string
+                                      (dyn :pkg-out) "/lib" # to find own libs
+                                      ":"
+                                      (join-pkg-paths ":" "/lib"
+                                                      [capstone file zlib lz4 xxhash openssl])
+                                      ":"
+                                      (join-pkg-paths ":" "/lib64"
+                                                      [libuv libzip]))
+                       " "
+                       (sh/$<_ pkg-config --libs capstone zlib liblz4 libxxhash libssl libcrypto libuv libzip)))
+
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out)
+          --with-syscapstone
+          --with-sysxxhash
+          --with-syszip
+          --with-sysmagic
+          --with-openssl)
+
+    (sh/$ make
+          -j (dyn :parallelism))
+
+    (sh/$ make
+          install)))
