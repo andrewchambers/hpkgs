@@ -16,7 +16,7 @@ dl musl-cross-make.tar.gz \
 cat <<-EOF > mcm-stage1-config.mak
 TARGET = x86_64-linux-musl
 LINUX_VER = 4.19.90
-COMMON_CONFIG += --disable-nls CFLAGS=-O3 CXXFLAGS=-O3 LDFLAGS=-s
+COMMON_CONFIG += --enable-new-dtags --disable-nls CFLAGS=-O3 CXXFLAGS=-O3 LDFLAGS=-s
 GCC_CONFIG += --disable-libquadmath --disable-decimal-float
 GCC_CONFIG += --disable-libitm
 GCC_CONFIG += --disable-fixed-point
@@ -26,7 +26,7 @@ EOF
 cat <<-EOF > mcm-stage2-config.mak
 TARGET = x86_64-linux-musl
 LINUX_VER = 4.19.90
-COMMON_CONFIG += --disable-nls CFLAGS=-O3 CXXFLAGS=-O3 LDFLAGS=-s
+COMMON_CONFIG += --enable-new-dtags --disable-nls CFLAGS=-O3 CXXFLAGS=-O3 LDFLAGS=-s
 COMMON_CONFIG += CC="x86_64-linux-musl-gcc -static --static" CXX="x86_64-linux-musl-g++ -static --static"
 GCC_CONFIG += --disable-libquadmath --disable-decimal-float
 GCC_CONFIG += --disable-libitm
