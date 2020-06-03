@@ -3,6 +3,8 @@
 (use ./ncurses)
 
 (defsrc vim-src
+  :file-name
+  "vim-8.2.091.tar.gz"
   :url
   "https://github.com/vim/vim/archive/v8.2.0891.tar.gz"
   :hash
