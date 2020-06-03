@@ -21,12 +21,7 @@
                                  core/make
                                  core/sed]))
      (os/setenv "CFLAGS" *default-cflags*)
-     (os/setenv "LDFLAGS"
-                (string
-                 *default-ldflags*
-                 " "
-                 # use RUNPATH
-                 "-Wl,--enable-new-dtags"))
+     (os/setenv "LDFLAGS" *default-ldflags*)
      (unpack-src pcre2-src)
      (core/link-/bin/sh)
      (sh/$ ./configure
