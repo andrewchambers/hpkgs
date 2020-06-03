@@ -16,10 +16,7 @@
                                [core/awk core/coreutils core/gcc core/grep
                                 core/make core/sed perl]))
     (os/setenv "CFLAGS" *default-cflags*)
-    (os/setenv "LDFLAGS"
-               (string *default-ldflags*
-                       " "
-                       "-Wl,--enable-new-dtags"))
+    (os/setenv "LDFLAGS" *default-ldflags*)
     (unpack-src openssl-src)
     (rewrite "config"
              |(string/replace-all "/usr/bin/env"
