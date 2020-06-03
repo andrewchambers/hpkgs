@@ -1,0 +1,43 @@
+(use ../prelude)
+(import ../core)
+(use ./ncurses)
+
+(defsrc vim-src
+  :url
+  "https://github.com/vim/vim/archive/v8.2.0891.tar.gz"
+  :hash
+  "sha256:1848dbc78d21e119b9314de06ce9852137d740f8c3fb97f558dea3f7f01bed44")
+
+(defpkg vim
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (string (ncurses :path) "/lib/pkgconfig"))
+    (os/setenv "PATH"
+               (string "/bin:" # XXX: need sh
+                       (join-pkg-paths ":" "/bin"
+                                       [core/awk
+                                        core/coreutils
+                                        core/findutils
+                                        core/gcc
+                                        core/grep
+                                        core/make
+                                        core/pkgconf
+                                        core/sed])))
+    (os/setenv "CPPFLAGS"
+               (string *default-cflags*
+                       " "
+                       (sh/$<_ pkg-config --cflags ncurses)))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       (sh/$<_ pkg-config --libs ncurses)))
+    #
+    (core/link-/bin/sh)
+    (unpack-src vim-src)
+    #
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))
