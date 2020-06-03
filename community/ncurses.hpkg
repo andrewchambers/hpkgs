@@ -22,8 +22,6 @@
                                  " "
                                  "-Wl,-L" (dyn :pkg-out) "/lib"
                                  " "
-                                 "-Wl,--enable-new-dtags"
-                                 " "
                                  "-Wl,-rpath=" (dyn :pkg-out) "/lib"))
     (unpack-src ncurses-src)
     (core/link-/bin/sh)
