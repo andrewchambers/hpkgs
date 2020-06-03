@@ -37,8 +37,6 @@
     (os/setenv "LDFLAGS"
                (string *default-ldflags*
                        " "
-                       "-Wl,--enable-new-dtags"
-                       " "
                        "-L" (talloc :path) "/lib"
                        " "
                        "-Wl,-rpath," (talloc :path) "/lib"))
