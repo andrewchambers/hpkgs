@@ -27,7 +27,7 @@ when hermes is installed in multi user mode.
 
 To do so simply run:
 
-```hermes build -m seed-out.hpkg```
+```hermes build seed-out.hpkg```
 
 The hash of this file should match the hash of the input seed, meaning you
 have a self hosted software environment with access to all source code.
