@@ -1,0 +1,31 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc cpio-src
+  :url
+  "https://ftp.gnu.org/gnu/cpio/cpio-2.13.tar.gz"
+  :hash
+  "sha256:e87470d9c984317f658567c03bfefb6b0c829ff17dbf6b0de48d71a4c8f3db88")
+
+(defpkg cpio
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk
+                                core/coreutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/sed]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    #
+    (unpack-src cpio-src)
+    (core/link-/bin/sh)
+    #
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))
