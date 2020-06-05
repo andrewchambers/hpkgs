@@ -1,37 +1,34 @@
 (use ../prelude)
 (import ../core)
-(use ./autoconf)
-(use ./automake)
-(use ./libtool)
-(use ./m4)
 (use ./ncurses)
 (use ./patchelf)
-(use ./perl)
 (use ./readline)
 
 (defsrc rlwrap-src
-  :file-name
-  "rlwrap-0.43.tar.gz"
   :url
-  "https://github.com/hanslub42/rlwrap/archive/v0.43.tar.gz"
+  "https://github.com/hanslub42/rlwrap/releases/download/v0.43/rlwrap-0.43.tar.gz"
   :hash
-  "sha256:29e5a850fbe4753f353b0734e46ec0da043621bdcf7b52a89b77517f3941aade")
+  "sha256:8e86d0b7882d9b8a73d229897a90edc207b1ae7fa0899dca8ee01c31a93feb2f")
 
 (defpkg rlwrap
   :builder
   (fn []
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
-                               [core/awk autoconf automake core/coreutils
-                                core/gcc core/grep libtool m4 core/make
-                                core/patch patchelf perl core/sed]))
-    (os/setenv "CFLAGS"
+                               [core/awk
+                                core/coreutils
+                                core/gcc
+                                core/grep 
+                                core/make
+                                patchelf
+                                core/sed
+                                ]))
+    (os/setenv "CPPFLAGS"
                (string
-                 *default-cflags*
-                 " "
                  "-I" (ncurses :path) "/include"
                  " "
                  "-I" (readline :path) "/include"))
+    (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS"
                (string
                  *default-ldflags*
@@ -46,24 +43,6 @@
     #
     (unpack-src rlwrap-src)
     (core/link-/bin/sh)
-    # need to create configure script, but first...
-    # XXX: hack configure.ac so that some tests pass
-    (sh/$ patch < ``
---- configure.ac	2017-03-02 22:18:32.000000000 +0000
-+++ configure.ac.new	2020-05-25 11:46:25.011074855 +0100
-@@ -351,7 +351,8 @@
-               AC_DEFINE($3, 1 ,[Define to 1 if your readline lib has $1])
-               last_check=yes
-            else
--              last_check=no
-+              AC_DEFINE($3, 1 ,[Define to 1 if your readline lib has $1])
-+              last_check=yes
-            fi
-            remark=
-            if test x$in_lib = x0 -a x$in_header = x1 ; then
-
-``) # XXX: w/o the blank line above the patching is fuzzy
-    (sh/$ autoreconf --install)
     #
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out))
