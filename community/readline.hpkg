@@ -4,8 +4,6 @@
 (use ./patchelf)
 
 (defsrc readline-src
-  :file-name
-   "readline-8.0.tar.gz"
   :url
   "https://ftp.gnu.org/gnu/readline/readline-8.0.tar.gz"
   :hash
