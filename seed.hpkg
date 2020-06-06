@@ -1,9 +1,9 @@
-(def seed-hash "sha256:7b78403abeaacb89175b2501e91c8def7ad91287449542133bdd805c50daa645")
+(def seed-hash "sha256:73f4d678e94d35575981c031c255e77ebd05899c0d4f4bb318f7fb848658a3ed")
 
 (def seed-tarball
   (fetch
     :url
-    "https://github.com/andrewchambers/hermes-seeds/raw/master/seed.tar.gz"
+    "https://github.com/andrewchambers/hermes-seeds/raw/274e167bea337b127c56f4ebdc919268a5a680e7/seed.tar.gz"
     :hash
     seed-hash))
 
