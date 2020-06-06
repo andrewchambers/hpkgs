@@ -3,7 +3,7 @@
 (def seed-tarball
   (fetch
     :url
-    "https://github.com/andrewchambers/hermes-seeds/raw/274e167bea337b127c56f4ebdc919268a5a680e7/seed.tar.gz"
+    "https://github.com/andrewchambers/hpkgs-seeds/raw/274e167bea337b127c56f4ebdc919268a5a680e7/linux-x86_64-seed.tar.gz"
     :hash
     seed-hash))
 
