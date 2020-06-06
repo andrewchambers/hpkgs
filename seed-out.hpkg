@@ -14,11 +14,12 @@
     (sh/$ cp (pkg-path "/bin/busybox" busybox/busybox) (string (dyn :pkg-out) "/bin"))
     (os/cd (string (dyn :pkg-out) "/bin"))
     (each app (string/split "\n" (sh/$<_ ./busybox --list))
-      (os/symlink "./busybox" app))))
+      # strings comes from gcc/binutils.
+      (unless (os/lstat app)
+        (os/symlink "./busybox" app)))))
 
 (defpkg seed-out
-  # FIXME we want a stable out hash that matches the in hash again.
-  # :content {"seed.tar.gz" {:content seed-hash}}
+  :content {"seed.tar.gz" {:content seed/seed-hash}}
   :builder
   (fn []
     (os/setenv "LC_ALL" "C")
