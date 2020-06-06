@@ -1,0 +1,35 @@
+(use ../prelude)
+(import ../core)
+(use ./python3)
+
+(defsrc node-src
+  :url
+  "https://nodejs.org/dist/v12.18.0/node-v12.18.0.tar.gz"
+  :hash
+  "sha256:a55c36f0cd9898f8bfa5a793a9e656e78d383f643ebec94afa67d084620b2b13")
+
+(defpkg node
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/findutils
+                                core/gcc
+                                core/grep
+                                core/make
+                                python3
+                                core/sed
+                                core/which]))
+    #
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    #
+    (unpack-src node-src)
+    (core/link-/bin/sh)
+    #
+    (sh/$ python3 configure.py
+          --prefix= ^ (dyn :pkg-out))
+    (sh/$ make
+          -j (dyn :parallelism))
+    (sh/$ make install)))
