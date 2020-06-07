@@ -1,0 +1,22 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc scdoc-src
+  :url
+  "https://git.sr.ht/~sircmpwn/scdoc/refs/1.10.1/scdoc-1.10.1.tar.gz"
+  :hash
+  "sha256:51b60a2e9c51c3160f24f88bed8ba68d2357b5a1bc0e34b7a2ff83245f132333")
+
+(defpkg scdoc
+  :builder
+  (fn []
+    (os/setenv "PATH"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/coreutils core/gcc core/sed core/make]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" (string *default-ldflags* " --static"))
+    (core/link-/bin/sh)
+    (unpack-src scdoc-src)
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
