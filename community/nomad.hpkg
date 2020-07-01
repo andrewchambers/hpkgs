@@ -1,0 +1,31 @@
+(use ../prelude)
+(import ../core)
+(use ./go)
+
+(defsrc nomad-src
+  :file-name
+  "nomad.tar.gz"
+  :url
+  "https://github.com/hashicorp/nomad/archive/v0.11.3.tar.gz"
+  :hash
+  "sha256:4ac797fd87a9e24a99e45a5dae91dd1064ab90a9da180ee2d0914a6ded4d3272")
+
+(defpkg nomad
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin:"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/coreutils core/gcc go])))
+    (os/setenv "GOPATH" (os/cwd))
+    (os/setenv "GOCACHE" (string (os/cwd) "/cache"))
+    (sh/$ mkdir -p "src/github.com/hashicorp/nomad")
+    (os/cd "src/github.com/hashicorp/nomad")
+    (unpack-src nomad-src)
+    (os/setenv "CGO_ENABLED" "1")
+    (os/mkdir (string (dyn :pkg-out) "/bin"))
+    (sh/$ go build
+          -trimpath
+          -ldflags "-s -w"
+          -tags "ui release nonvidia"
+          -o (string (dyn :pkg-out) "/bin/nomad"))))

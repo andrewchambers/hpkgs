@@ -11,8 +11,8 @@
   :builder
   (fn []
     (os/setenv "PATH"
-                       (join-pkg-paths ":" "/bin"
-                                       [core/coreutils core/gcc core/sed core/make]))
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/sed core/make]))
     (os/setenv "CFLAGS" *default-cflags*)
     (os/setenv "LDFLAGS" (string *default-ldflags* " --static"))
     (core/link-/bin/sh)
