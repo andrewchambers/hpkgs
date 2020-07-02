@@ -1,0 +1,74 @@
+(use ../prelude)
+(import ../core)
+(use ./libarchive)
+(use ./lz4)
+(use ./patchelf)
+(use ./util-linux)
+(use ./xz)
+(use ./zlib)
+
+(defsrc fspec-tools-src
+  :file-name
+  "fspec-tools-0.0.1.tar.gz"
+  :url
+  "https://github.com/andrewchambers/fspec-tools/archive/v0.0.1.tar.gz"
+  :hash
+  "sha256:2957324ea3cf271f839ba216486f33e194a76778005127baf0082062a2bf29a8")
+
+(defpkg fspec-tools
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/gcc
+                                core/make
+                                patchelf]))
+    (os/setenv "CFLAGS"
+               (string *default-cflags*
+                       " "
+                       "-I" (libarchive :path) "/include"
+                       " "
+                       "-I" (lz4 :path) "/include"
+                       " "
+                       "-I" (xz :path) "/include"
+                       " "
+                       "-I" (zlib :path) "/include"))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L" (libarchive :path) "/lib"
+                       " "
+                       "-L" (lz4 :path) "/lib"
+                       " "
+                       "-L" (xz :path) "/lib"
+                       " "
+                       "-L" (zlib :path) "/lib"))
+    (os/setenv "LDLIBS"
+               (string "-l lzma"
+                       " "
+                       "-l lz4"
+                       " "
+                       "-l z"))
+    (os/setenv "CC" "gcc")
+    #
+    (unpack-src fspec-tools-src)
+    (rewrite "Makefile"
+             |(string/replace "LDLIBS="
+                              "LDLIBS+="
+                              $))
+    (core/link-/bin/sh)
+    #
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)
+    #
+    (each exe ["fspec-cpio" "fspec-fromcpio" "fspec-fromdir" "fspec-fromtar"
+               "fspec-tar"]
+      (sh/$ patchelf --set-rpath
+            (join-pkg-paths ":" "/lib"
+                            [libarchive lz4 xz zlib])
+            (string (dyn :pkg-out) "/bin/" exe)))))
