@@ -1,0 +1,22 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc mtools-src
+  :url
+  "ftp://ftp.gnu.org/gnu/mtools/mtools-4.0.24.tar.bz2"
+  :hash
+  "sha256:24f4a2da9219f98498eb1b340cd96db7ef9b684c067d1bdeb6e85efdd13b2fb9")
+
+(defpkg mtools
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/sed core/grep core/awk core/make]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" (string *default-ldflags* " --static"))
+    (unpack-src mtools-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
