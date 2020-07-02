@@ -1,0 +1,105 @@
+(use ../prelude)
+(import ../core)
+(use ./file)
+(use ./patchelf)
+(use ./perl)
+(use ./zlib)
+
+(defsrc ucl-src
+  :url
+  "http://www.oberhumer.com/opensource/ucl/download/ucl-1.03.tar.gz"
+  :hash
+  "sha256:b865299ffd45d73412293369c9754b07637680e5c826915f097577cd27350348")
+
+(defpkg ucl
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin:/usr/bin"
+                               [core/awk
+                                core/coreutils
+                                file
+                                core/gcc
+                                core/grep
+                                core/make
+                                core/sed]))
+    # https://git.archlinux.org/svntogit/packages.git/tree/trunk/PKGBUILD?h=packages/syslinux#n84-n85
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    # XXX: possibly an alternative to setting CPPFLAGS is:
+    # https://git.alpinelinux.org/aports/tree/community/ucl/0001-Static-assert.patch
+    # https://bugs.archlinux.org/task/49287
+    (os/setenv "CPPFLAGS" "-std=c90 -fPIC")
+    #
+    (unpack-src ucl-src)
+    (core/link-/bin/sh)
+    (unless (os/lstat "/usr/bin/file")
+      (os/symlink (pkg-path "/bin/file" file) "/usr/bin/file"))
+    #
+    (sh/$ ./configure
+          --prefix= ^ (dyn :pkg-out)
+          --enable-shared
+          --enable-static
+          )
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)))
+
+(defsrc upx-lzma-sdk
+  :url
+  "https://github.com/upx/upx-lzma-sdk/archive/v3.96.tar.gz"
+  :hash
+  "sha256:e465670abe0900a0995f7e6166bff86caed06b253f6ff02d6490df6263aecc67")
+
+(defsrc upx-src
+  :url
+  "https://github.com/upx/upx/releases/download/v3.96/upx-3.96-src.tar.xz"
+  :hash
+  "sha256:47774df5c958f2868ef550fb258b97c73272cb1f44fe776b798e393465993714")
+
+(defpkg upx
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/gcc
+                                core/make
+                                patchelf
+                                perl
+                                core/sed]))
+    (os/setenv "CPPFLAGS"
+               (string "-I" (ucl :path) "/include"
+                       " "
+                       "-I" (zlib :path) "/include"))
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L"
+                       (ucl :path) "/lib"
+                       " "
+                       "-L"
+                       (zlib :path) "/lib"))
+    #
+    (unpack-src upx-src)
+    (unpack-src upx-lzma-sdk)
+    #
+    (core/link-/bin/sh)
+    #
+    (sh/$ make
+          # https://git.archlinux.org/svntogit/community.git/tree/trunk/PKGBUILD?h=packages/upx#n28
+          CHECK_WHITESPACE= ^ (core/coreutils :path) ^ "/bin/true"
+          UPX_LZMADIR= ^ (first (sh/glob "upx-lzma-sdk-*"))
+          -j (dyn :parallelism)
+          all)
+    (sh/$ install -Dm755
+          src/upx.out (dyn :pkg-out) ^ "/bin/upx")
+    (sh/$ install -Dm644
+          doc/upx.1 (dyn :pkg-out) ^ "/man/man1/upx.1")
+    #
+    (sh/$ patchelf --set-rpath
+          (join-pkg-paths ":" "/lib"
+                           [ucl zlib])
+          (string (dyn :pkg-out) "/bin/upx"))))
