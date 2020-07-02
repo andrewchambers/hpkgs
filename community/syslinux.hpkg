@@ -53,23 +53,6 @@
     (os/setenv "EXTRA_CFLAGS" "-fno-PIE")
     #
     (unpack-src syslinux-src)
-    # 3 instances
-    (rewrite "Makefile"
-             |(string/replace-all "gpxe/gpxelinux.0"
-                                  ""
-                                  $))
-    (rewrite "Makefile"
-             |(string/replace "gpxe/gpxelinuxk.0"
-                              ""
-                              $))
-    (rewrite "Makefile"
-             |(string/replace "gpxe: core"
-                              ""
-                              $))
-    (rewrite "Makefile"
-             |(string/replace "mbr gpxe sample"
-                              "mbr sample"
-                              $))
     # https://github.com/buildroot/buildroot/blob/master/boot/syslinux/0012-pull-in-sys-sysmacros-h-for-major-minor-makedev.patch
     # https://gitweb.gentoo.org/repo/gentoo.git/tree/sys-boot/syslinux/files/syslinux-6.03-sysmacros.patch?id=19ae69e682d94b2317057e4751e4b78555868362
     # XXX: this may not be necessary at some point
@@ -87,9 +70,10 @@
       (os/symlink (pkg-path "/bin/echo" core/coreutils) "/bin/echo"))
     #
     (sh/$ make
-           bios
-           INSTALLROOT= ^ (dyn :pkg-out)
-           -j (dyn :parallelism))
-    (sh/$ make
+          BINDIR=/bin
+          SBINDIR=/sbin
+          MANDIR=/share/man
+          DATADIR=/share
           INSTALLROOT= ^ (dyn :pkg-out)
+          -j (dyn :parallelism)
           install)))
