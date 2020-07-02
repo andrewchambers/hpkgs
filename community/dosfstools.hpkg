@@ -1,0 +1,22 @@
+(use ../prelude)
+(import ../core)
+
+(defsrc dosfstools-src
+  :url
+  "https://github.com/dosfstools/dosfstools/releases/download/v4.1/dosfstools-4.1.tar.xz"
+  :hash
+  "sha256:e6b2aca70ccc3fe3687365009dd94a2e18e82b688ed4e260e04b7412471cc173")
+
+(defpkg dosfstools
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils core/gcc core/sed core/grep core/awk core/make]))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" (string *default-ldflags* " --static"))
+    (unpack-src dosfstools-src)
+    (core/link-/bin/sh)
+    (sh/$ ./configure --prefix= ^ (dyn :pkg-out))
+    (sh/$ make -j (dyn :parallelism))
+    (sh/$ make install)))
