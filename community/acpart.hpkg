@@ -1,0 +1,58 @@
+(use ../prelude)
+(import ../core)
+(use ./patchelf)
+(use ./util-linux)
+
+(defsrc acpart-src
+  :file-name
+  "acpart-0.0.1.tar.gz"
+  :url
+  "https://github.com/andrewchambers/acpart/archive/v0.0.1.tar.gz"
+  :hash
+  "sha256:c1deb4e75f8e23ec78787662a72ad85099a92ff4f54046813cbbe0d55d6ce1b9")
+
+(defpkg acpart
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils
+                                core/gcc
+                                core/make
+                                patchelf]))
+    (os/setenv "CPPFLAGS"
+               (string "-I" (util-linux :path) "/include"))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags*
+                       " "
+                       "-L" (util-linux :path) "/lib"))
+    (os/setenv "LDLIBS"
+               (string "-l uuid"
+                       " "
+                       "-l blkid"))
+    (os/setenv "CC" "gcc")
+    #
+    (unpack-src acpart-src)
+    (rewrite "Makefile"
+             |(string/replace "LDFLAGS="
+                              "LDFLAGS+="
+                              $))
+    (rewrite "Makefile"
+             |(string/replace "LDLIBS="
+                              "LDLIBS+="
+                              $))
+    (core/link-/bin/sh)
+    #
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          -j (dyn :parallelism))
+    (sh/$ make
+          PREFIX= ^ (dyn :pkg-out)
+          install)
+    #
+    (each exe ["acpart-offset" "acpart-read" "acpart-size" "acpart-write"]
+      (sh/$ patchelf --set-rpath
+            (join-pkg-paths ":" "/lib"
+                            [util-linux])
+            (string (dyn :pkg-out) "/bin/" exe)))))
