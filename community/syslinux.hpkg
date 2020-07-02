@@ -1,0 +1,95 @@
+(use ../prelude)
+(import ../core)
+(use ./nasm)
+(use ./perl)
+(use ./upx)
+(use ./util-linux)
+
+(defsrc syslinux-src
+  :url
+  "https://mirrors.edge.kernel.org/pub/linux/utils/boot/syslinux/6.xx/syslinux-6.03.tar.xz"
+  :hash
+  "sha256:26d3986d2bea109d5dc0e4f8c4822a459276cf021125e8c9f23c3cca5d8c850e")
+
+(defpkg gcc-wrapper
+  :builder
+  (fn []
+   (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/coreutils]))
+    (sh/$ mkdir (dyn :pkg-out) ^ /bin)
+    (def wrapper-path (string (dyn :pkg-out) "/bin/gcc"))
+    (spit wrapper-path
+      (string
+        "#! /bin/sh\n"
+        "set -eux\n"
+        "exec " (core/gcc :path) "/bin/gcc"
+        " -L" (pkg-path "/lib" util-linux)
+        " -I" (pkg-path "/include" util-linux)
+        " \"$@\"\n"))
+    (sh/$ chmod +x ,wrapper-path)))
+
+(defpkg syslinux
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (join-pkg-paths ":" "/bin"
+                               [core/awk
+                                core/coreutils
+                                core/findutils
+                                # XXX: order matters here
+                                gcc-wrapper
+                                core/gcc
+                                core/grep
+                                core/gzip
+                                core/make
+                                nasm
+                                perl
+                                core/sed
+                                upx]))
+    # https://git.archlinux.org/svntogit/packages.git/tree/trunk/PKGBUILD?h=packages/syslinux#n84-n85
+    (os/setenv "LDFLAGS"
+               (string *default-ldflags* " " "--no-dynamic-linker"))
+    (os/setenv "EXTRA_CFLAGS" "-fno-PIE")
+    #
+    (unpack-src syslinux-src)
+    # 3 instances
+    (rewrite "Makefile"
+             |(string/replace-all "gpxe/gpxelinux.0"
+                                  ""
+                                  $))
+    (rewrite "Makefile"
+             |(string/replace "gpxe/gpxelinuxk.0"
+                              ""
+                              $))
+    (rewrite "Makefile"
+             |(string/replace "gpxe: core"
+                              ""
+                              $))
+    (rewrite "Makefile"
+             |(string/replace "mbr gpxe sample"
+                              "mbr sample"
+                              $))
+    # https://github.com/buildroot/buildroot/blob/master/boot/syslinux/0012-pull-in-sys-sysmacros-h-for-major-minor-makedev.patch
+    # https://gitweb.gentoo.org/repo/gentoo.git/tree/sys-boot/syslinux/files/syslinux-6.03-sysmacros.patch?id=19ae69e682d94b2317057e4751e4b78555868362
+    # XXX: this may not be necessary at some point
+    (rewrite "extlinux/main.c"
+             |(string/replace (string "#include <sys/stat.h>\n"
+                                      "#include <sys/types.h>\n")
+                              (string "#include <sys/stat.h>\n"
+                                      "#include <sys/sysmacros.h>\n"
+                                      "#include <sys/types.h>\n")
+                              $))
+    (core/link-/bin/sh)
+    (unless (os/lstat "/bin/pwd")
+      (os/symlink (pkg-path "/bin/pwd" core/coreutils) "/bin/pwd"))
+    (unless (os/lstat "/bin/echo")
+      (os/symlink (pkg-path "/bin/echo" core/coreutils) "/bin/echo"))
+    #
+    (sh/$ make
+           bios
+           INSTALLROOT= ^ (dyn :pkg-out)
+           -j (dyn :parallelism))
+    (sh/$ make
+          INSTALLROOT= ^ (dyn :pkg-out)
+          install)))
