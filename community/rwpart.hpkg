@@ -3,15 +3,15 @@
 (use ./patchelf)
 (use ./util-linux)
 
-(defsrc acpart-src
+(defsrc rwpart-src
   :file-name
-  "acpart-0.0.1.tar.gz"
+  "rwpart-0.0.2.tar.gz"
   :url
-  "https://github.com/andrewchambers/acpart/archive/v0.0.1.tar.gz"
+  "https://github.com/andrewchambers/rwpart/archive/v0.0.2.tar.gz"
   :hash
-  "sha256:c1deb4e75f8e23ec78787662a72ad85099a92ff4f54046813cbbe0d55d6ce1b9")
+  "sha256:6f9859a0197d5982f74acc7643b82e8c4840e336ad866470bcaab4b301b87649")
 
-(defpkg acpart
+(defpkg rwpart
   :builder
   (fn []
     (os/setenv "PATH"
@@ -33,7 +33,7 @@
                        "-l blkid"))
     (os/setenv "CC" "gcc")
     #
-    (unpack-src acpart-src)
+    (unpack-src rwpart-src)
     (rewrite "Makefile"
              |(string/replace "LDFLAGS="
                               "LDFLAGS+="
@@ -51,7 +51,7 @@
           PREFIX= ^ (dyn :pkg-out)
           install)
     #
-    (each exe ["acpart-offset" "acpart-read" "acpart-size" "acpart-write"]
+    (each exe ["rwpart-offset" "rwpart-read" "rwpart-size" "rwpart-write"]
       (sh/$ patchelf --set-rpath
             (join-pkg-paths ":" "/lib"
                             [util-linux])
