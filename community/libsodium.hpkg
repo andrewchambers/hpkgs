@@ -13,12 +13,12 @@
     (os/setenv "PATH"
                (join-pkg-paths ":" "/bin"
                                [core/awk core/coreutils core/diffutils core/gcc
-                                core/grep core/make core/sed]))
+                                core/grep core/make core/sed core/findutils]))
     (unpack-src libsodium-src)
     (core/link-/bin/sh)
     (sh/$ ./configure
           --prefix= ^ (dyn :pkg-out))
-    (sh/$ make
+    (sh/$ make V=1
           -j (dyn :parallelism))
     (sh/$ make
           install)))
