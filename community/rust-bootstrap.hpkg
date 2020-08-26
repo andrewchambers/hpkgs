@@ -1,0 +1,44 @@
+(use ../prelude)
+(import ../core)
+(use ./patchelf)
+
+# https://forge.rust-lang.org/infra/other-installation-methods.html
+(defsrc rust-bootstrap-src
+  :url
+  "https://static.rust-lang.org/dist/rust-1.44.0-x86_64-unknown-linux-musl.tar.gz"
+  :hash
+  "sha256:dabcba42caeba91874cf10640f70fb580bdab136ce56211ac341f10d311f6ebc")
+
+
+(defpkg rust-bootstrap
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin"
+                       ":"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/coreutils
+                                        core/grep
+                                        core/make
+                                        patchelf
+                                        core/sed])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src rust-bootstrap-src)
+    (core/link-/bin/sh)
+    (sh/$ sh install.sh
+          --disable-ldconfig
+          --prefix= ^ (dyn :pkg-out)
+          --components= ^ "rustc,cargo,rust-std-x86_64-unknown-linux-musl")
+    # necessary to set INTERPRETER
+    (def exe-paths
+      (map |(string (dyn :pkg-out) "/bin/" $)
+           ["cargo"
+            "rustc"
+            "rustdoc"]))
+    (each path exe-paths
+      (sh/$ patchelf
+            --set-interpreter
+            (string (core/gcc-rt :path)
+                    "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
+            ,path))))
