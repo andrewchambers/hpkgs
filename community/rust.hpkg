@@ -1,0 +1,161 @@
+(use ../prelude)
+(use ./patchelf)
+(use ./cmake)
+(use ./ninja)
+(use ./openssl)
+(use ./patchelf)
+(use ./python3)
+
+(import ../core)
+
+
+# https://forge.rust-lang.org/infra/other-installation-methods.html
+(defsrc rust-bootstrap-src
+  :url
+  "https://static.rust-lang.org/dist/rust-1.45.2-x86_64-unknown-linux-musl.tar.gz"
+  :hash
+  "sha256:1518bc5255c248a62a58562368e0a54f61fe02fd50f97f68882a65a62b100c17")
+
+(defpkg rust-bootstrap
+  :builder
+  (fn []
+    (os/setenv "PATH"
+               (string "/bin"
+                       ":"
+                       (join-pkg-paths ":" "/bin"
+                                       [core/coreutils
+                                        core/grep
+                                        core/make
+                                        core/sed
+                                        patchelf])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src rust-bootstrap-src)
+    (core/link-/bin/sh)
+    (sh/$ sh install.sh
+          --disable-ldconfig
+          --prefix= ^ (dyn :pkg-out)
+          --components= ^ "rustc,cargo,rust-std-x86_64-unknown-linux-musl")
+    # necessary to set INTERPRETER
+    (def exe-paths
+      (map |(string (dyn :pkg-out) "/bin/" $)
+           ["cargo"
+            "rustc"
+            "rustdoc"]))
+    (each path exe-paths
+      (sh/$ patchelf
+            --set-interpreter
+            (string (core/gcc-rt :path)
+                    "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
+            ,path))))
+
+(defsrc rust-src
+  :url
+  "https://static.rust-lang.org/dist/rustc-1.45.2-src.tar.gz"
+  :hash
+  "sha256:b7a3fc1e3ee367260ef945da867da0957f8983705f011ba2a73715375e50e308")
+
+(def- rust-build-config ``
+[llvm]
+
+static-libstdcpp = true
+ninja = true
+
+[build]
+
+build = "x86_64-unknown-linux-musl"
+cargo = "{{BOOTSTRAP_RUST}}/bin/cargo"
+rustc = "{{BOOTSTRAP_RUST}}/bin/rustc"
+docs = false
+submodules = false
+extended = true
+vendor = true
+verbose = 2
+print-step-timings = true
+
+[install]
+
+prefix = "{{OUT}}"
+# XXX: installer doesn't respect prefix
+sysconfdir = "{{OUT}}/etc"
+
+[rust]
+
+# XXX: lld = true seems to lead to lld being built
+lld = false
+default-linker = "{{GCC}}/bin/gcc"
+channel = "stable"
+verbose-tests = true
+codegen-backends = ["llvm"]
+# XXX: rpath = true leads to RPATH value of $ORIGIN/../lib
+rpath = false
+
+[target.x86_64-unknown-linux-musl]
+
+cc = "{{GCC}}/bin/gcc"
+cxx = "{{GCC}}/bin/g++"
+ar = "{{GCC}}/bin/ar"
+ranlib = "{{GCC}}/bin/ranlib"
+linker = "{{GCC}}/bin/gcc"
+crt-static = false
+musl-root = "{{GCC}}/x86_64-linux-musl"
+
+[dist]
+``)
+
+(defpkg rust
+  :builder
+  (fn []
+    (os/setenv "PKG_CONFIG_PATH"
+               (string (openssl :path) "/lib/pkgconfig"))
+    (os/setenv "PATH"
+               (string "/bin" # for /bin/sh (needed for install.sh)
+                       ":"
+                       (join-pkg-paths ":" "/bin"
+                                       [cmake
+                                        core/coreutils
+                                        core/gcc
+                                        core/grep # needed to run install.sh
+                                        ninja
+                                        python3
+                                        patchelf
+                                        core/pkgconf # needed for openssl-sys crate(?)
+                                        rust-bootstrap
+                                        core/sed # needed to run install.sh
+])))
+    (os/setenv "CFLAGS" *default-cflags*)
+    (os/setenv "LDFLAGS" *default-ldflags*)
+    (unpack-src rust-src)
+    (core/link-/bin/sh)
+
+    (spit "config.toml"
+          (->> rust-build-config
+               (string/replace-all "{{BOOTSTRAP_RUST}}" (rust-bootstrap :path))
+               (string/replace-all "{{GCC}}" (core/gcc :path))
+               (string/replace-all "{{OUT}}" (dyn :pkg-out))))
+
+    (os/setenv "RUST_BACKTRACE" "1")
+    (os/setenv "OPENSSL_STATIC" "1")
+    (sh/$ python3 x.py install)
+    # RUNPATH adjustment
+    (def exes
+      (map |(string (dyn :pkg-out) "/bin/" $)
+           ["clippy-driver"
+            "rls"
+            "rustc"
+            "rustdoc"]))
+    (def libs
+      [;(sh/glob (string (dyn :pkg-out) "/lib/librustc_driver-*.so"))
+       ;(sh/glob (string (dyn :pkg-out) "/lib/libtest-*.so"))])
+    (def runpath
+      (string (dyn :pkg-out) "/lib"))
+    (each bin-path (array/concat exes libs)
+      (sh/$ patchelf
+            --set-rpath ,runpath
+            ,bin-path))
+    (sh/$ patchelf
+          --set-rpath (string (dyn :pkg-out)
+                              "/lib/rustlib/x86_64-unknown-linux-musl/lib")
+          ;(sh/glob (string (dyn :pkg-out)
+                            "/lib/rustlib/x86_64-unknown-linux-musl/lib"
+                            "/libtest-*.so")))))
